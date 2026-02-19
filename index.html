@@ -3,160 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A2Z STORE | البريد الاحترافي</title>
+    <title>A2Z STORE | بريد المحترفين</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #2563eb; --bg: #e2e8f0; --card: #ffffff; --text: #0f172a; }
+        :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; }
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px 10px; }
-        .container { max-width: 950px; margin: auto; }
+        .container { max-width: 900px; margin: auto; }
         
-        /* تصميم الهيدر الفخم */
-        .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 20px 30px; border-radius: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); }
-        .header h1 { margin: 0; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
-        .refresh-btn { background: #3b82f6; color: white; border: none; padding: 12px 25px; border-radius: 12px; cursor: pointer; font-weight: 800; font-family: 'Cairo'; font-size: 1rem; transition: all 0.3s ease; }
-        .refresh-btn:hover { background: #2563eb; transform: translateY(-2px); }
+        .header { background: var(--primary); padding: 20px 30px; border-radius: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 10px 15px -3px rgba(0,67,156,0.3); }
+        .header h1 { margin: 0; font-size: 1.8rem; }
+        .refresh-btn { background: white; color: var(--primary); border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .refresh-btn:hover { transform: scale(1.05); }
 
-        /* تصميم كروت الرسائل */
-        .email-card { background: var(--card); border-radius: 20px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1); border: 1px solid #cbd5e1; }
-        .email-header { padding: 25px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; position: relative; }
-        .subject { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 10px; padding-left: 90px; }
-        .meta { display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.95rem; color: #475569; align-items: center; }
-        .tag { background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 8px; font-weight: 800; }
+        .email-card { background: var(--card); border-radius: 15px; margin-bottom: 30px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .email-header { padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; position: relative; }
+        .subject { font-size: 1.3rem; font-weight: bold; color: #0f172a; margin-bottom: 10px; padding-left: 80px; }
+        .meta { font-size: 0.9rem; color: #64748b; display: flex; gap: 15px; flex-wrap: wrap; }
+        .tag { background: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 5px; font-weight: bold; }
         
-        .btn-delete { position: absolute; left: 25px; top: 25px; background: #fee2e2; color: #ef4444; border: 2px solid #fecaca; padding: 8px 20px; border-radius: 10px; cursor: pointer; font-weight: 800; font-family: 'Cairo'; transition: all 0.2s; }
-        .btn-delete:hover { background: #ef4444; color: white; border-color: #ef4444; }
-
-        .message-container { width: 100%; height: 650px; border: none; background: white; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; display: block; }
-        .status-msg { padding: 50px; text-align: center; color: #64748b; font-size: 1.2rem; font-weight: 600; }
+        .btn-delete { position: absolute; left: 20px; top: 20px; background: #fee2e2; color: #ef4444; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
+        
+        .message-container { width: 100%; height: 750px; border: none; background: #ffffff; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>👑 A2Z Premium Inbox</h1>
-            <button class="refresh-btn" onclick="fetchEmails()">تحديث الصندوق 🔄</button>
+            <h1>🎮 بريد A2Z STORE</h1>
+            <button class="refresh-btn" onclick="fetchEmails()">تحديث الرسائل 🔄</button>
         </div>
-        <div id="emails-list"><div class="status-msg">جاري تحميل رسائلك الآمنة...</div></div>
+        <div id="emails-list"><div style="text-align:center; padding:40px; color:#64748b; font-weight:bold; font-size:1.2rem;">جاري تحميل صندوق الوارد...</div></div>
     </div>
 
-    <script>
+    <script type="module">
+        import PostalMime from 'https://cdn.jsdelivr.net/npm/postal-mime@2.2.14/+esm';
+        
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
-        const myApp = supabase.createClient(S_URL, S_KEY);
+        const myApp = window.supabase.createClient(S_URL, S_KEY);
 
-        // نظام X-Ray لفك تشفير سوني وأي شركة معقدة
-        function smartXRayScanner(rawText) {
-            if (!rawText) return "";
-
-            // دالة مساعدة لعمل نافذة العرض
-            const createDisplay = (content) => {
-                const doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{font-family:sans-serif;margin:0;padding:20px;background:#fff;} img{max-width:100%;height:auto;}</style></head><body>${content}</body></html>`;
-                return URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
-            };
-
-            try {
-                // 1. الفحص الشامل عن أي كود Base64 مخفي
-                // بندور على أي كتلة نصية طويلة جداً (أكثر من 150 حرف) لأن ده شكل التشفير
-                let base64Blocks = rawText.match(/([a-zA-Z0-9+/=\r\n]{150,})/g);
-                if (base64Blocks) {
-                    for (let block of base64Blocks) {
-                        let cleanBlock = block.replace(/[\r\n\s]/g, ''); // تنظيف المسافات
-                        try {
-                            let decoded = atob(cleanBlock); // فك التشفير
-                            try { decoded = decodeURIComponent(escape(decoded)); } catch(e){} // تظبيط العربي
-                            
-                            // لو الكود اللي اتفك ده طلع جواه تصميم HTML، يبقى هو ده الإيميل!
-                            if (decoded.toLowerCase().includes('<html') || decoded.toLowerCase().includes('<body')) {
-                                return createDisplay(decoded);
-                            }
-                        } catch (e) { /* لو مش كود حقيقي بنكمل تدوير */ }
-                    }
-                }
-
-                // 2. البحث عن التصميم الصريح لو مش مشفر
-                let lowerText = rawText.toLowerCase();
-                let htmlIndex = lowerText.indexOf('<html');
-                if (htmlIndex === -1) htmlIndex = lowerText.indexOf('<!doctype html');
-                
-                if (htmlIndex !== -1) {
-                    let pureHtml = rawText.substring(htmlIndex);
-                    // قص أي أكواد تقنية في آخر الرسالة
-                    pureHtml = pureHtml.split(/\n--[a-zA-Z0-9=_-]+/)[0];
-                    return createDisplay(pureHtml);
-                }
-
-                // 3. البحث عن تشفير Quoted-Printable (تشفير تاني مشهور)
-                let qpDecoded = rawText.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
-                let qpHtml = qpDecoded.toLowerCase().indexOf('<html');
-                if (qpHtml !== -1) {
-                    return createDisplay(qpDecoded.substring(qpHtml).split(/\n--/)[0]);
-                }
-
-                // 4. خطة الطوارئ: لو الرسالة نص عادي بس، نمسح الهيدرز التقنية تماماً
-                let parts = rawText.split(/\n\s*\n/);
-                let bodyOnly = parts.length > 1 ? parts.slice(1).join('\n\n') : rawText;
-                
-                // مسح أي بقايا للسيرفر
-                bodyOnly = bodyOnly.replace(/--[a-zA-Z0-9=_-]+/g, ''); 
-                bodyOnly = bodyOnly.replace(/Content-Type:.*?\n/gi, '');
-                bodyOnly = bodyOnly.replace(/Content-Transfer-Encoding:.*?\n/gi, '');
-                
-                // تفعيل الروابط
-                let linkedText = bodyOnly.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-
-                return createDisplay(`
-                    <div style="direction:rtl; text-align:right;">
-                        <div style="background:#fef2f2; color:#991b1b; padding:10px; border-radius:8px; margin-bottom:15px; font-weight:bold;">
-                            ⚠️ هذه الرسالة لا تحتوي على تصميم صوري، هذا هو النص المتاح:
-                        </div>
-                        <pre style="white-space:pre-wrap; direction:ltr; text-align:left; font-size:15px; color:#1e293b; font-family:monospace;">${linkedText}</pre>
-                    </div>
-                `);
-
-            } catch (error) {
-                return createDisplay("<div style='color:red; text-align:center;'>عفواً، حدث خطأ أثناء تحليل هذه الرسالة المعقدة.</div>");
-            }
-        }
-
-        async function fetchEmails() {
+        window.fetchEmails = async function() {
             const list = document.getElementById('emails-list');
-            list.innerHTML = "<div class='status-msg'>جاري مزامنة السيرفر... ⏳</div>";
+            list.innerHTML = "<div style='text-align:center; padding:40px; font-size:1.2rem;'>جاري المزامنة وفك التشفير... ⏳</div>";
             
             const { data, error } = await myApp.from('emails').select('*').order('created_at', { ascending: false });
             
-            if (error) {
-                list.innerHTML = `<div class='status-msg' style='color:red;'>حدث خطأ: ${error.message}</div>`;
-                return;
-            }
-            if (data.length === 0) {
-                list.innerHTML = "<div class='status-msg'>صندوق الوارد فارغ. 📭</div>";
-                return;
-            }
+            if (error) { list.innerHTML = `<div style='color:red; padding:20px;'>خطأ: ${error.message}</div>`; return; }
+            if (data.length === 0) { list.innerHTML = "<div style='text-align:center; padding:40px;'>لا توجد رسائل.</div>"; return; }
 
+            // نرسم شكل الكروت الأول
             list.innerHTML = data.map(email => `
                 <div class="email-card" id="card-${email.id}">
                     <div class="email-header">
                         <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف 🗑️</button>
-                        <div class="subject">${email.subject || '(بدون عنوان)'}</div>
+                        <div class="subject">${email.subject || 'بدون عنوان'}</div>
                         <div class="meta">
-                            <span>المرسل: <strong>${email.sender}</strong></span>
-                            <span>المستلم: <span class="tag">${email.recipient}</span></span>
+                            <span>المرسل: <span class="tag">${email.sender}</span></span>
                             <span>التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</span>
                         </div>
                     </div>
-                    <iframe class="message-container" src="${smartXRayScanner(email.body_text)}"></iframe>
+                    <iframe class="message-container" id="frame-${email.id}"></iframe>
                 </div>
             `).join('');
+
+            // المكتبة تدخل تفك شفرة كل إيميل وتطلع التصميم الأصلي
+            const parser = new PostalMime();
+            for (let email of data) {
+                try {
+                    const parsedEmail = await parser.parse(email.body_text);
+                    
+                    // هندور على الـ HTML الأول، لو مفيش نجيب النص العادي
+                    let finalContent = parsedEmail.html || `<div style="padding:20px; direction:ltr; white-space:pre-wrap;">${parsedEmail.text}</div>`;
+                    
+                    // لو المكتبة ملقتش حاجة خالص!
+                    if (!parsedEmail.html && !parsedEmail.text) {
+                        finalContent = "<h3 style='color:red; text-align:center; padding:20px;'>⚠️ الرسالة غير مكتملة. يبدو أن سيرفر Cloudflare قام بقص الرسالة قبل وصولها.</h3>";
+                    }
+
+                    // نعرض التصميم في المربع
+                    const doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:0;background:#fff;} a{color:#2563eb;text-decoration:none;}</style></head><body>${finalContent}</body></html>`;
+                    const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+                    document.getElementById(`frame-${email.id}`).src = URL.createObjectURL(blob);
+                } catch(e) {
+                    document.getElementById(`frame-${email.id}`).srcdoc = "<div style='padding:20px; color:red;'>حدث خطأ أثناء قراءة التصميم.</div>";
+                }
+            }
         }
 
-        async function deleteEmail(id) {
-            if(confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
+        window.deleteEmail = async function(id) {
+            if(confirm('متأكد إنك عاوز تمسح الرسالة؟')) {
                 await myApp.from('emails').delete().eq('id', id);
                 document.getElementById(`card-${id}`).remove();
             }
         }
-        window.onload = fetchEmails;
+        
+        window.fetchEmails();
     </script>
 </body>
 </html>
