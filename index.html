@@ -40,49 +40,52 @@
         function superDecoder(raw) {
             if (!raw) return "";
 
+            // دالة سحرية لضبط اللغة العربية (UTF-8)
+            const fixArabic = (str) => {
+                try { return decodeURIComponent(escape(str)); } 
+                catch(e) { return str; }
+            };
+
             try {
-                // 1. التشريح: هندور على الفواصل بتاعت الرسالة
                 let parts = raw.split(/--_?[A-Za-z0-9=_-]+/);
                 
                 for (let part of parts) {
                     let lowerPart = part.toLowerCase();
                     
-                    // لو لقينا الجزء الخاص بالتصميم (HTML)
                     if (lowerPart.includes('content-type: text/html')) {
-                        // بنفصل رأس الجزء ده عن المحتوى الفعلي
                         let splitContent = part.split(/\r?\n\r?\n/);
                         let bodyText = splitContent.length > 1 ? splitContent.slice(1).join('\n\n').trim() : part;
 
                         // لو مشفر بـ Base64
                         if (lowerPart.includes('base64')) {
-                            try { return decodeURIComponent(escape(atob(bodyText.replace(/[\s\r\n]/g, '')))); } 
+                            try { return fixArabic(atob(bodyText.replace(/[\s\r\n]/g, ''))); } 
                             catch(e) { try { return atob(bodyText.replace(/[\s\r\n]/g, '')); } catch(e){} }
                         } 
-                        // لو مشفر بـ Quoted-Printable
+                        // لو مشفر بـ Quoted-Printable (زي إيميل فيسبوك)
                         else if (lowerPart.includes('quoted-printable')) {
-                            return bodyText.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
+                            let decodedQP = bodyText.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
+                            return fixArabic(decodedQP); // هنا ضفنا مصحح العربي
                         }
                         // لو مش مشفر
                         else {
-                            return bodyText;
+                            return fixArabic(bodyText);
                         }
                     }
                 }
 
-                // 2. خطة طوارئ: تدوير أعمى على أي بلوك Base64 سوني مخبياه
+                // خطة الطوارئ
                 let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{300,})/g);
                 if (b64Blocks) {
                     for (let block of b64Blocks) {
                         try {
-                            let decoded = decodeURIComponent(escape(atob(block.replace(/[\s\r\n]/g, ''))));
-                            if (decoded.includes('<html') || decoded.includes('PlayStation') || decoded.includes('Verify')) {
+                            let decoded = fixArabic(atob(block.replace(/[\s\r\n]/g, '')));
+                            if (decoded.includes('<html') || decoded.includes('PlayStation') || decoded.includes('Verify') || decoded.includes('facebook')) {
                                 return decoded;
                             }
                         } catch(e){}
                     }
                 }
 
-                // 3. لو كل ده فشل، لازم نعرضلك الرسالة الخام عشان نعرف العيب فين!
                 return `<div style="padding:20px; direction:ltr; text-align:left; font-family:monospace; font-size:12px; white-space:pre-wrap; background:#f8fafc; color:#b91c1c; border:2px solid #fca5a5; border-radius:8px;">
                 <b>⚠️ لم نتمكن من استخراج التصميم. أرسل لنا لقطة شاشة لهذا الكود:</b><br><br>${raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
 
