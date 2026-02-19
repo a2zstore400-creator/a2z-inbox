@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2Z Mail | لوحة تحكم المدير</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #00439c; --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; }
+        body { font-family: 'Cairo', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
+        .stat-card h3 { margin: 0; color: #64748b; font-size: 1rem; }
+        .stat-card .value { font-size: 2.5rem; font-weight: 900; color: var(--primary); margin: 10px 0; }
+
+        .user-list { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px 20px; text-align: right; border-bottom: 1px solid #f1f5f9; }
+        th { background: #f8fafc; color: #64748b; font-weight: bold; }
+        
+        .status { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+        .active { background: #dcfce7; color: #166534; }
+        .banned { background: #fee2e2; color: #991b1b; }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; transition: 0.2s; }
+        .btn-ban { background: #ef4444; color: white; }
+        .btn-unban { background: #10b981; color: white; }
+        .btn:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ إدارة A2Z Mail</h1>
+            <button class="btn" style="background:#64748b; color:white;" onclick="window.location.href='inbox.html'">العودة للبريد</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>إجمالي المستخدمين</h3>
+                <div class="value" id="total-users">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>إجمالي الرسائل</h3>
+                <div class="value" id="total-emails">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>المحظورين</h3>
+                <div class="value" id="banned-users" style="color: #ef4444;">0</div>
+            </div>
+        </div>
+
+        <div class="user-list">
+            <table>
+                <thead>
+                    <tr>
+                        <th>المستخدم</th>
+                        <th>البريد الإلكتروني</th>
+                        <th>الحالة</th>
+                        <th>تحكم</th>
+                    </tr>
+                </thead>
+                <tbody id="users-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
+        const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
+        const myApp = supabase.createClient(S_URL, S_KEY);
+
+        async function loadDashboard() {
+            // تحميل إحصائيات
+            const { count: userCount } = await myApp.from('a2z_users').select('*', { count: 'exact', head: true });
+            const { count: emailCount } = await myApp.from('emails').select('*', { count: 'exact', head: true });
+            const { count: banCount } = await myApp.from('a2z_users').select('*', { count: 'exact', head: true }).eq('status', 'banned');
+
+            document.getElementById('total-users').innerText = userCount || 0;
+            document.getElementById('total-emails').innerText = emailCount || 0;
+            document.getElementById('banned-users').innerText = banCount || 0;
+
+            // تحميل قائمة المستخدمين
+            const { data: users } = await myApp.from('a2z_users').select('*').order('created_at', { ascending: false });
+            const body = document.getElementById('users-body');
+            body.innerHTML = users.map(u => `
+                <tr>
+                    <td style="font-weight:bold;">${u.username}</td>
+                    <td>${u.email_address}</td>
+                    <td><span class="status ${u.status === 'banned' ? 'banned' : 'active'}">${u.status || 'نشط'}</span></td>
+                    <td>
+                        ${u.status === 'banned' 
+                            ? `<button class="btn btn-unban" onclick="updateStatus('${u.id}', 'active')">إلغاء الحظر</button>` 
+                            : `<button class="btn btn-ban" onclick="updateStatus('${u.id}', 'banned')">حظر</button>`}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function updateStatus(uid, newStatus) {
+            const { error } = await myApp.from('a2z_users').update({ status: newStatus }).eq('id', uid);
+            if(!error) {
+                alert('تم التحديث بنجاح! ✅');
+                loadDashboard();
+            }
+        }
+
+        window.onload = loadDashboard;
+    </script>
+</body>
+</html>
