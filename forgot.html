@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>A2Z Mail | استعادة كلمة المرور</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: #f1f5f9; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; font-family: 'Cairo'; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #00439c; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .back-link { display: block; margin-top: 15px; color: #64748b; text-decoration: none; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="step-1">
+        <h2>🔑 نسيت كلمة المرور؟</h2>
+        <p>اكتب بريدك في A2Z Mail عشان نبعتلك كود التحقق على إيميل الاسترداد.</p>
+        <input type="text" id="email-input" placeholder="example@a2z-mail.com">
+        <button onclick="checkUser()">إرسال الكود 🚀</button>
+        <a href="login.html" class="back-link">رجوع لتسجيل الدخول</a>
+    </div>
+
+    <div class="card" id="step-2" style="display: none;">
+        <h2>📩 تحقق من بريدك</h2>
+        <p>بعتنا كود سري لإيميل الاسترداد المربوط بحسابك.</p>
+        <input type="text" id="code-input" placeholder="أدخل الكود المكون من 6 أرقام">
+        <input type="password" id="new-password" placeholder="كلمة المرور الجديدة">
+        <button onclick="updatePassword()">تحديث كلمة المرور ✅</button>
+    </div>
+
+    <script>
+        const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
+        const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
+        const myApp = supabase.createClient(S_URL, S_KEY);
+
+        let correctCode = ""; // الكود اللي السيستم هيولده
+        let targetUserEmail = ""; 
+
+        async function checkUser() {
+            const email = document.getElementById('email-input').value;
+            if(!email) return alert("اكتب الإيميل الأول!");
+
+            // فحص وجود المستخدم وسحب إيميل الاسترداد [cite: 2026-02-13]
+            const { data, error } = await myApp.from('a2z_users').select('recovery_email, email_address').eq('email_address', email).single();
+
+            if (data) {
+                targetUserEmail = data.email_address;
+                // توليد كود عشوائي من 6 أرقام
+                correctCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+                // إرسال الكود باستخدام الـ Worker اللي عملناه [cite: 2026-02-14]
+                try {
+                    await fetch("https://late-butterfly-bd1a.a2z-store400.workers.dev", {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            from: "A2Z Security <security@a2z-mail.com>",
+                            to: data.recovery_email, 
+                            subject: "كود استعادة حسابك في A2Z Mail",
+                            html: `<div dir="rtl"><h2>كود التحقق الخاص بك هو: <span style="color:#00439c">${correctCode}</span></h2><p>لو مكنتش إنت اللي طلبت الكود، تجاهل الرسالة دي.</p></div>`
+                        })
+                    });
+                    
+                    document.getElementById('step-1').style.display = 'none';
+                    document.getElementById('step-2').style.display = 'block';
+                } catch(e) {
+                    alert("حصل مشكلة في إرسال الكود، حاول تاني.");
+                }
+            } else {
+                alert("الإيميل ده مش موجود عندنا، اتأكد من الكتابة صح.");
+            }
+        }
+
+        async function updatePassword() {
+            const userCode = document.getElementById('code-input').value;
+            const newPass = document.getElementById('new-password').value;
+
+            if (userCode === correctCode) {
+                const { error } = await myApp.from('a2z_users').update({ password: newPass }).eq('email_address', targetUserEmail);
+                if (!error) {
+                    alert("تم تغيير كلمة المرور بنجاح! 🎉 تقدر تسجل دخول دلوقتي.");
+                    window.location.href = 'login.html';
+                }
+            } else {
+                alert("الكود اللي دخلته غلط!");
+            }
+        }
+    </script>
+</body>
+</html>
