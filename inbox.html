@@ -45,7 +45,6 @@
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; }
         .empty-state svg { width: 80px; height: 80px; margin-bottom: 20px; opacity: 0.5; color: var(--primary); }
 
-        /* ستايل نافذة إرسال الرسائل */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; width: 500px; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .modal-title { margin-top: 0; margin-bottom: 20px; color: #0f172a; }
@@ -64,7 +63,8 @@
     <div class="sidebar">
         <div class="logo">🎮 A2Z Mail</div>
         <button class="btn-compose" onclick="openCompose()">✏️ إنشاء رسالة</button>
-        <div class="menu-item active">📥 البريد الوارد</div>
+        <div class="menu-item active" id="tab-inbox" onclick="loadTab('inbox')">📥 البريد الوارد</div>
+        <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
         <div class="menu-item btn-logout" onclick="logout()">🚪 تسجيل خروج</div>
     </div>
 
@@ -76,7 +76,7 @@
 
         <div class="workspace">
             <div class="email-list-container" id="emails-list">
-                <div style="padding: 40px; text-align: center; color: #64748b;">جاري تحميل صندوق الوارد... ⏳</div>
+                <div style="padding: 40px; text-align: center; color: #64748b;">جاري تحميل الرسائل... ⏳</div>
             </div>
 
             <div class="email-reader">
@@ -121,6 +121,9 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
         let allEmails = [];
+        
+        // متغير عشان نعرف إحنا واقفين في الوارد ولا المرسل
+        let currentTab = 'inbox'; 
 
         function superDecoder(raw) {
             if (!raw) return "";
@@ -152,20 +155,60 @@
             } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
         }
 
+        // دالة التنقل بين الوارد والمرسل
+        function loadTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-inbox').classList.remove('active');
+            document.getElementById('tab-sent').classList.remove('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            // قفل شاشة القراءة المفتوحة
+            document.getElementById('empty-reader').style.display = 'flex';
+            document.getElementById('reader-header').style.display = 'none';
+            document.getElementById('reader-frame').style.display = 'none';
+            
+            fetchEmails();
+        }
+
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
+            list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري تحميل الرسائل... ⏳</div>";
+            
             try {
-                const { data, error } = await myApp.from('emails').select('*').eq('recipient', userData.email_address).order('created_at', { ascending: false });
+                // الفلتر الذكي: لو وارد يجيب اللي مبعوتلي، لو مرسل يجيب اللي أنا باعتها
+                let query = myApp.from('emails').select('*').order('created_at', { ascending: false });
+                
+                if (currentTab === 'inbox') {
+                    query = query.eq('recipient', userData.email_address);
+                } else {
+                    query = query.ilike('sender', `%${userData.email_address}%`);
+                }
+
+                const { data, error } = await query;
                 if (error) throw error;
                 allEmails = data;
-                if (data.length === 0) { list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b; font-weight:bold; font-size:1.1rem;'><div style='font-size:3rem; margin-bottom:10px;'>📭</div>صندوق الوارد فارغ.</div>"; return; }
-                list.innerHTML = data.map((email, index) => `
+
+                if (data.length === 0) { 
+                    let icon = currentTab === 'inbox' ? '📭' : '📤';
+                    let text = currentTab === 'inbox' ? 'صندوق الوارد فارغ.' : 'لم تقم بإرسال أي رسائل.';
+                    list.innerHTML = `<div style='text-align:center; padding:40px; color:#64748b; font-weight:bold; font-size:1.1rem;'><div style='font-size:3rem; margin-bottom:10px;'>${icon}</div>${text}</div>`; 
+                    return; 
+                }
+
+                list.innerHTML = data.map((email, index) => {
+                    // لو في الوارد نظهر اسم اللي بعتلي، ولو في المرسل نظهر إحنا بعتنا لمين
+                    let displayPerson = currentTab === 'inbox' 
+                        ? email.sender.split('<')[0].replace(/"/g, '') 
+                        : `إلى: ${email.recipient}`;
+
+                    return `
                     <div class="email-item" onclick="openEmail(${index}, this)" id="item-${email.id}">
-                        <div class="e-sender">${email.sender.split('<')[0].replace(/"/g, '')}</div>
+                        <div class="e-sender">${displayPerson}</div>
                         <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
                         <div class="e-date">${new Date(email.created_at).toLocaleString('ar-EG')}</div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch (err) { list.innerHTML = `<div style="color:red; text-align:center; padding:20px;">حدث خطأ: ${err.message}</div>`; }
         }
 
@@ -194,9 +237,7 @@
             }
         }
 
-        // --- أكواد إرسال الرسائل الجديدة ---
         function openCompose() { document.getElementById('compose-modal').style.display = 'flex'; }
-        
         function closeCompose() {
             document.getElementById('compose-modal').style.display = 'none';
             document.getElementById('compose-to').value = '';
@@ -215,26 +256,37 @@
             btn.innerText = 'جاري الإرسال... ⏳';
             btn.disabled = true;
 
-            // رابط البوسطجي بتاعك من Cloudflare
             const WORKER_URL = "https://late-butterfly-bd1a.a2z-store400.workers.dev"; 
+            const htmlFormat = `<div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; font-size: 16px; color: #333;">${bodyText.replace(/\n/g, '<br>')}</div>`;
 
             try {
                 const response = await fetch(WORKER_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        from: `A2Z Mail <${userData.email_address}>`, // هيبعت باسم الإيميل اللي مسجل دخوله
+                        from: `A2Z Mail <${userData.email_address}>`,
                         to: to,
                         subject: subject,
-                        html: `<div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; font-size: 16px; color: #333;">${bodyText.replace(/\n/g, '<br>')}</div>`
+                        html: htmlFormat
                     })
                 });
 
                 const result = await response.json();
                 
                 if (result.id) {
+                    // التعديل السحري: إدراج نسخة في قاعدة البيانات عشان تظهر في المرسل
+                    await myApp.from('emails').insert([{
+                        sender: `A2Z Mail <${userData.email_address}>`,
+                        recipient: to,
+                        subject: subject,
+                        body_text: htmlFormat
+                    }]);
+
                     alert('تم إرسال الرسالة بنجاح! ✅');
                     closeCompose();
+                    
+                    // تحديث القائمة فوراً لو إحنا واقفين في البريد المرسل
+                    if(currentTab === 'sent') fetchEmails();
                 } else {
                     alert('حدث خطأ أثناء الإرسال: ' + JSON.stringify(result));
                 }
