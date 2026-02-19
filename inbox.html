@@ -7,141 +7,112 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #00439c; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --border: #e2e8f0; }
+        :root { --primary: #00439c; --bg: #f8fafc; }
         body { font-family: 'Cairo', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; }
-
-        /* Sidebar */
-        .sidebar { width: 260px; background: var(--card); border-left: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; }
-        .logo { font-size: 1.8rem; font-weight: 900; color: var(--primary); margin-bottom: 30px; text-align: center; }
-        .btn-compose { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 25px; font-family: 'Cairo'; font-size: 1rem; box-shadow: 0 4px 10px rgba(0,67,156,0.2); }
-
-        .menu-item { padding: 12px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; color: #64748b; transition: 0.2s; }
-        .menu-item.active { background: #eff6ff; color: var(--primary); }
-        .menu-item:hover:not(.active) { background: #f1f5f9; }
-
-        /* زر الإدارة السري */
-        #admin-link { 
-            background: #fffbeb; 
-            color: #92400e; 
-            border: 2px solid #fde68a; 
-            display: none; /* مخفي تلقائياً */
-            margin-top: 15px;
-        }
-
-        .main { flex: 1; display: flex; flex-direction: column; }
-        .header { background: white; padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .user-chip { background: #f1f5f9; padding: 6px 18px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; color: var(--primary); }
-
-        .workspace { display: flex; flex: 1; overflow: hidden; }
-        .list-panel { width: 400px; border-left: 1px solid var(--border); background: white; overflow-y: auto; }
-        .email-item { padding: 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; border-right: 4px solid transparent; }
+        
+        /* القائمة الجانبية */
+        .sidebar { width: 280px; background: white; border-left: 1px solid #e2e8f0; padding: 20px; display: flex; flex-direction: column; }
+        .logo { font-size: 1.5rem; font-weight: 900; color: var(--primary); margin-bottom: 30px; text-align: center; }
+        .user-info { background: #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; }
+        
+        /* قائمة الرسائل */
+        .email-list { flex: 1; background: white; border-left: 1px solid #e2e8f0; overflow-y: auto; }
+        .email-item { padding: 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; }
         .email-item:hover { background: #f8fafc; }
-        .email-item.selected { background: #f0f7ff; border-right-color: var(--primary); }
-        .e-sender { font-weight: 800; display: block; margin-bottom: 4px; }
-        .e-sub { font-size: 0.9rem; color: #64748b; }
+        .email-item.active { border-right: 4px solid var(--primary); background: #f0f7ff; }
+        .email-subject { font-weight: bold; color: #1e293b; margin-bottom: 5px; }
+        .email-from { font-size: 0.85rem; color: #64748b; }
 
-        .reader-panel { flex: 1; display: flex; flex-direction: column; background: white; }
-        .reader-header { padding: 30px; border-bottom: 1px solid var(--border); display: none; }
-        .reader-iframe { flex: 1; border: none; width: 100%; }
-
-        .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal { background: white; width: 600px; padding: 35px; border-radius: 20px; }
-        .input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 10px; font-family: 'Cairo'; box-sizing: border-box; }
+        /* عرض الرسالة */
+        .email-view { flex: 2; padding: 40px; overflow-y: auto; background: white; }
+        .view-header { border-bottom: 2px solid #f1f5f9; margin-bottom: 20px; padding-bottom: 20px; }
+        .view-body { line-height: 1.8; color: #334155; white-space: pre-wrap; }
+        
+        .empty-state { text-align: center; color: #94a3b8; margin-top: 100px; }
+        .btn-logout { margin-top: auto; padding: 12px; background: #fee2e2; color: #dc2626; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
         <div class="logo">A2Z Mail</div>
-        <button class="btn-compose" onclick="openCompose()">✏️ إنشاء رسالة</button>
-        
-        <div class="menu-item active" id="tab-inbox" onclick="changeTab('inbox')">📥 الوارد</div>
-        <div class="menu-item" id="tab-sent" onclick="changeTab('sent')">📤 المرسل</div>
-        
-        <div class="menu-item" id="admin-link" onclick="window.location.href='admin.html'">⚙️ لوحة الإدارة</div>
-        
-        <div style="margin-top: auto;">
-            <div class="menu-item" style="color: #ef4444;" onclick="logout()">🚪 تسجيل الخروج</div>
-        </div>
+        <div class="user-info" id="user-display">جاري التحميل...</div>
+        <button class="btn-logout" onclick="logout()">تسجيل الخروج</button>
     </div>
 
-    <div class="main">
-        <div class="header">
-            <div style="font-weight: bold;">أهلاً، <span id="u-name"></span></div>
-            <div class="user-chip" id="u-email"></div>
-        </div>
+    <div class="email-list" id="list-container">
+        <div class="empty-state">لا توجد رسائل بعد.</div>
+    </div>
 
-        <div class="workspace">
-            <div class="list-panel" id="mail-list">
-                <div style="padding: 50px; text-align: center; color: #94a3b8;">جاري التحميل...</div>
-            </div>
-            <div class="reader-panel">
-                <div id="no-selection" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#cbd5e1;">
-                    <h3>اختر رسالة لقراءتها</h3>
-                </div>
-                <div class="reader-header" id="r-header">
-                    <div style="float: left;"><button onclick="deleteMail()" style="background:#fee2e2; color:#ef4444; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold;">حذف 🗑️</button></div>
-                    <div id="r-sub" style="font-size: 1.6rem; font-weight: 900;"></div>
-                    <div id="r-meta" style="color: #64748b;"></div>
-                </div>
-                <iframe id="r-frame" class="reader-iframe" style="display: none;"></iframe>
-            </div>
-        </div>
+    <div class="email-view" id="view-container">
+        <div class="empty-state">اختر رسالة لقراءتها</div>
     </div>
 
     <script>
-        const userData = JSON.parse(localStorage.getItem('a2z_user'));
-        if(!userData) window.location.href = 'index.html';
-
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        document.getElementById('u-name').innerText = userData.username;
-        document.getElementById('u-email').innerText = userData.email_address;
+        let currentUser = JSON.parse(localStorage.getItem('a2z_user'));
 
-        // 🛡️ فحص هوية المدير لإظهار الزرار
-        if(userData.email_address === 'admin@a2z-mail.com') {
-            document.getElementById('admin-link').style.display = 'flex';
+        if (!currentUser) {
+            window.location.href = 'login.html';
+        } else {
+            document.getElementById('user-display').innerHTML = `
+                <b>أهلاً، ${currentUser.username}</b><br>
+                <span style="font-size:0.8rem">${currentUser.email_address}</span>
+            `;
+            loadEmails();
         }
 
-        let allMails = [];
-        let tab = 'inbox';
+        async function loadEmails() {
+            const { data, error } = await myApp.from('emails')
+                .select('*')
+                .eq('recipient', currentUser.email_address)
+                .order('created_at', { ascending: false });
 
-        async function fetchMails() {
-            let q = myApp.from('emails').select('*').order('created_at', {ascending: false});
-            if(tab === 'inbox') q = q.eq('recipient', userData.email_address);
-            else q = q.ilike('sender', `%${userData.email_address}%`);
-            const {data} = await q;
-            allMails = data || [];
-            render();
+            const list = document.getElementById('list-container');
+            if (data && data.length > 0) {
+                list.innerHTML = data.map(email => `
+                    <div class="email-item" onclick="viewEmail('${email.id}')">
+                        <div class="email-subject">${email.subject || '(بدون عنوان)'}</div>
+                        <div class="email-from">من: ${email.sender}</div>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = '<div class="empty-state">صندوق الوارد فارغ.</div>';
+            }
         }
 
-        function render() {
-            const list = document.getElementById('mail-list');
-            list.innerHTML = allMails.map((m, i) => `
-                <div class="email-item" onclick="openMail(${i}, this)">
-                    <span class="e-sender">${tab==='inbox' ? m.sender.split('<')[0].replace(/"/g,'') : m.recipient}</span>
-                    <div class="e-sub">${m.subject || '(بدون موضوع)'}</div>
-                </div>
-            `).join('');
+        async function viewEmail(id) {
+            const { data } = await myApp.from('emails').select('*').eq('id', id).single();
+            if (data) {
+                const view = document.getElementById('view-container');
+                
+                // تنظيف محتوى الرسالة من الـ Headers
+                let body = data.body;
+                if (body.includes("\r\n\r\n")) {
+                    body = body.split("\r\n\r\n").slice(1).join("\r\n\r\n");
+                }
+
+                view.innerHTML = `
+                    <div class="view-header">
+                        <h2>${data.subject || '(بدون عنوان)'}</h2>
+                        <div style="color:#64748b">من: ${data.sender}</div>
+                        <div style="font-size:0.8rem; color:#94a3b8">${new Date(data.created_at).toLocaleString('ar-EG')}</div>
+                    </div>
+                    <div class="view-body">${body}</div>
+                `;
+            }
         }
 
-        function openMail(i, el) {
-            const m = allMails[i];
-            document.querySelectorAll('.email-item').forEach(d => d.classList.remove('selected'));
-            el.classList.add('selected');
-            document.getElementById('no-selection').style.display = 'none';
-            document.getElementById('r-header').style.display = 'block';
-            document.getElementById('r-frame').style.display = 'block';
-            document.getElementById('r-sub').innerText = m.subject;
-            document.getElementById('r-meta').innerText = `من: ${m.sender} | إلى: ${m.recipient}`;
-            document.getElementById('r-frame').srcdoc = `<html><body style="font-family:Cairo; direction:rtl; padding:20px;">${m.body_text}</body></html>`;
+        function logout() {
+            localStorage.removeItem('a2z_user');
+            window.location.href = 'login.html';
         }
 
-        function changeTab(t) { tab = t; fetchMails(); }
-        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
-        window.onload = fetchMails;
+        // تحديث تلقائي كل 30 ثانية
+        setInterval(loadEmails, 30000);
     </script>
 </body>
 </html>
