@@ -41,66 +41,75 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        // محرك داخلي لفك شفرات سوني بدون مكتبات خارجية
-        function extractEmailDesign(rawEmail) {
-            if (!rawEmail) return "<div style='padding:20px'>رسالة فارغة.</div>";
+        // المحلل النهائي لرسائل الـ Multi-part
+        function extractUltimateDesign(raw) {
+            if (!raw) return "";
 
-            // 1. فك تشفير الـ Quoted-Printable (الرموز زي =3D)
-            const decodeQP = (str) => {
-                try {
-                    return str.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
-                } catch(e) { return str; }
-            };
+            let htmlContent = "";
+            let textContent = "";
 
-            // 2. فك تشفير الـ Base64
-            const decodeB64 = (str) => {
-                try { return decodeURIComponent(escape(atob(str.replace(/[\s\r\n]/g, '')))); } 
-                catch(e) { 
-                    try { return atob(str.replace(/[\s\r\n]/g, '')); } catch(err) { return ""; }
-                }
-            };
-
-            // محاولة 1: البحث عن كود Base64 صريح جواه HTML (إيميلات سوني بتيجي كده)
-            let b64Match = rawEmail.match(/Content-Transfer-Encoding:\s*base64[\s\S]*?\r?\n\r?\n([\s\S]*?)(?=\r?\n--|$)/i);
-            if (b64Match && b64Match[1]) {
-                let decoded = decodeB64(b64Match[1]);
-                if (decoded.includes('<html') || decoded.includes('<body') || decoded.includes('<div')) {
-                    return decoded;
-                }
-            }
-
-            // محاولة 2: البحث الأعمى عن أي كتلة Base64 ضخمة (خطة طوارئ لسوني)
-            let blindB64Blocks = rawEmail.match(/([a-zA-Z0-9+/=]{500,})/g);
-            if (blindB64Blocks) {
-                for (let block of blindB64Blocks) {
-                    let decoded = decodeB64(block);
-                    if (decoded.includes('<html') || decoded.includes('verify')) {
-                        return decoded;
+            // 1. تقسيم الرسالة المتعددة الأجزاء (Multi-part)
+            let boundaryMatch = raw.match(/boundary="?([^"\r\n]+)"?/i);
+            if (boundaryMatch) {
+                let parts = raw.split(boundaryMatch[1]);
+                for (let part of parts) {
+                    let isHtml = part.toLowerCase().includes("content-type: text/html");
+                    
+                    // استخراج البلوكات المشفرة من كل جزء
+                    let b64Blocks = part.match(/([A-Za-z0-9+/=\r\n]{100,})/g);
+                    if (b64Blocks) {
+                        for (let block of b64Blocks) {
+                            let clean = block.replace(/[\r\n\s]/g, '');
+                            try {
+                                let decoded = decodeURIComponent(escape(atob(clean)));
+                                // لو ده تصميم HTML
+                                if (isHtml || decoded.includes("<html") || decoded.includes("<body") || decoded.includes("<table")) {
+                                    htmlContent = decoded;
+                                } else if (!textContent) {
+                                    textContent = decoded; // حفظ النص كاحتياطي
+                                }
+                            } catch(e) {
+                                try {
+                                    let decoded = atob(clean);
+                                    if (isHtml || decoded.includes("<html") || decoded.includes("<table")) htmlContent = decoded;
+                                } catch(err){}
+                            }
+                        }
                     }
                 }
             }
 
-            // محاولة 3: استخراج كود HTML مباشر لو مش مشفر قوي
-            let rawClean = decodeQP(rawEmail);
-            let htmlMatch = rawClean.match(/<html[\s\S]*?<\/html>/i);
-            if (htmlMatch) {
-                return htmlMatch[0];
+            // 2. الفحص الشامل لو مفيش حدود (Boundaries)
+            if (!htmlContent) {
+                let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{100,})/g);
+                if (b64Blocks) {
+                    for (let block of b64Blocks) {
+                        let clean = block.replace(/[\r\n\s]/g, '');
+                        try {
+                            let decoded = decodeURIComponent(escape(atob(clean)));
+                            if (decoded.includes("<html") || decoded.includes("<body") || decoded.includes("<table") || decoded.includes("Verify")) {
+                                htmlContent = decoded;
+                                break;
+                            } else if (!textContent) {
+                                textContent = decoded;
+                            }
+                        } catch(e) {
+                            try {
+                                let decoded = atob(clean);
+                                if (decoded.includes("<html") || decoded.includes("<table")) htmlContent = decoded;
+                            } catch(err){}
+                        }
+                    }
+                }
             }
 
-            // محاولة 4: تنظيف النص العادي لو مفيش تصميم خالص
-            let parts = rawClean.split(/\r?\n\r?\n/);
-            let textOnly = parts.length > 1 ? parts.slice(1).join('\n\n') : rawClean;
-            textOnly = textOnly.replace(/--[a-zA-Z0-9_-]+/g, ''); // مسح الفواصل التقنية
+            // إرجاع النتيجة
+            if (htmlContent) return htmlContent;
             
-            // تحويل الروابط
-            textOnly = textOnly.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+            // لو فشل تماماً يعرض النص المفكوك اللي كان ظاهرلك في الصورة بس بشكل مقروء
+            if (textContent) return `<div style="padding:20px; white-space:pre-wrap; direction:ltr; font-family:sans-serif; font-size:16px;">${textContent.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')}</div>`;
 
-            return `<div style="padding:20px; direction:ltr; white-space:pre-wrap; font-family:sans-serif;">
-                <div style="color:#d97706; background:#fef3c7; padding:10px; border-radius:5px; margin-bottom:15px; font-weight:bold; direction:rtl;">
-                    ⚠️ هذه الرسالة قد تكون نصية فقط أو مشفرة بشكل غير كامل.
-                </div>
-                ${textOnly}
-            </div>`;
+            return `<div style="padding:20px; white-space:pre-wrap; direction:ltr;">الرسالة مشفرة بتنسيق غير معروف.</div>`;
         }
 
         async function fetchEmails() {
@@ -110,13 +119,12 @@
                 
                 if (error) throw error;
                 if (data.length === 0) { 
-                    list.innerHTML = "<div style='text-align:center; padding:40px; font-size:1.2rem; color:#64748b;'>صندوق الوارد فارغ حالياً. 📭</div>"; 
+                    list.innerHTML = "<div style='text-align:center; padding:40px; font-size:1.2rem; color:#64748b;'>صندوق الوارد فارغ. 📭</div>"; 
                     return; 
                 }
 
                 list.innerHTML = data.map(email => {
-                    // تجهيز تصميم الرسالة
-                    let finalDesign = extractEmailDesign(email.body_text);
+                    let finalDesign = extractUltimateDesign(email.body_text);
                     let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:#fff;font-family:sans-serif;} a{color:#2563eb;text-decoration:none;font-weight:bold;}</style></head><body>${finalDesign}</body></html>`;
                     let blobUrl = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
 
@@ -147,7 +155,6 @@
             }
         }
         
-        // تشغيل التحميل أول ما الصفحة تفتح
         window.onload = fetchEmails;
     </script>
 </body>
