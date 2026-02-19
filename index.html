@@ -37,51 +37,58 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        function extractUltimateDesign(raw) {
+        function superDecoder(raw) {
             if (!raw) return "";
 
-            // 1. فك تشفير Quoted-Printable بالكامل أولاً
-            let decodedText = raw.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
+            try {
+                // 1. التشريح: هندور على الفواصل بتاعت الرسالة
+                let parts = raw.split(/--_?[A-Za-z0-9=_-]+/);
+                
+                for (let part of parts) {
+                    let lowerPart = part.toLowerCase();
+                    
+                    // لو لقينا الجزء الخاص بالتصميم (HTML)
+                    if (lowerPart.includes('content-type: text/html')) {
+                        // بنفصل رأس الجزء ده عن المحتوى الفعلي
+                        let splitContent = part.split(/\r?\n\r?\n/);
+                        let bodyText = splitContent.length > 1 ? splitContent.slice(1).join('\n\n').trim() : part;
 
-            // 2. البحث عن HTML صريح (احتمال سوني تكون باعتة التصميم كده)
-            let directHtmlMatch = decodedText.match(/<html[\s\S]*?<\/html>/i) || decodedText.match(/<body[\s\S]*?<\/body>/i) || decodedText.match(/<table[\s\S]*?<\/table>/i);
-            if (directHtmlMatch) {
-                return directHtmlMatch[0];
-            }
-
-            // 3. البحث جوه الـ Base64 (وتجاهل أكواد التتبع اللي ظهرتلك)
-            let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{100,})/g);
-            let textBackup = "";
-
-            if (b64Blocks) {
-                for (let block of b64Blocks) {
-                    let clean = block.replace(/[\r\n\s]/g, '');
-                    try {
-                        let decoded = decodeURIComponent(escape(atob(clean)));
-                        let lower = decoded.toLowerCase();
-                        
-                        // لو ده تصميم HTML حقيقي، رجعه فوراً!
-                        if (lower.includes("<html") || lower.includes("<body") || lower.includes("<table") || lower.includes("verify now")) {
-                            return decoded;
+                        // لو مشفر بـ Base64
+                        if (lowerPart.includes('base64')) {
+                            try { return decodeURIComponent(escape(atob(bodyText.replace(/[\s\r\n]/g, '')))); } 
+                            catch(e) { try { return atob(bodyText.replace(/[\s\r\n]/g, '')); } catch(e){} }
+                        } 
+                        // لو مشفر بـ Quoted-Printable
+                        else if (lowerPart.includes('quoted-printable')) {
+                            return bodyText.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
                         }
-                        
-                        // حفظ النص كاحتياطي بس بشرط ميكنش كود JSON زي اللي ظهرلك
-                        if (!lower.includes('{"mid":') && decoded.length > 20) {
-                            textBackup = decoded;
+                        // لو مش مشفر
+                        else {
+                            return bodyText;
                         }
-                    } catch(e) {
-                        try {
-                            let decoded = atob(clean);
-                            if (decoded.toLowerCase().includes("<html") || decoded.toLowerCase().includes("<table")) return decoded;
-                        } catch(err){}
                     }
                 }
+
+                // 2. خطة طوارئ: تدوير أعمى على أي بلوك Base64 سوني مخبياه
+                let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{300,})/g);
+                if (b64Blocks) {
+                    for (let block of b64Blocks) {
+                        try {
+                            let decoded = decodeURIComponent(escape(atob(block.replace(/[\s\r\n]/g, ''))));
+                            if (decoded.includes('<html') || decoded.includes('PlayStation') || decoded.includes('Verify')) {
+                                return decoded;
+                            }
+                        } catch(e){}
+                    }
+                }
+
+                // 3. لو كل ده فشل، لازم نعرضلك الرسالة الخام عشان نعرف العيب فين!
+                return `<div style="padding:20px; direction:ltr; text-align:left; font-family:monospace; font-size:12px; white-space:pre-wrap; background:#f8fafc; color:#b91c1c; border:2px solid #fca5a5; border-radius:8px;">
+                <b>⚠️ لم نتمكن من استخراج التصميم. أرسل لنا لقطة شاشة لهذا الكود:</b><br><br>${raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+
+            } catch (err) {
+                return `<div style="padding:20px; color:red;">خطأ في المعالجة: ${err.message}</div>`;
             }
-
-            // 4. عرض الاحتياطي لو ملقاش HTML
-            if (textBackup) return `<div style="padding:20px; white-space:pre-wrap; direction:ltr; font-family:sans-serif;">${textBackup.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')}</div>`;
-
-            return `<div style="padding:20px; white-space:pre-wrap; direction:ltr;">تم استلام الرسالة، لكن لم يتم العثور على تصميم.</div>`;
         }
 
         async function fetchEmails() {
@@ -96,7 +103,7 @@
                 }
 
                 list.innerHTML = data.map(email => {
-                    let finalDesign = extractUltimateDesign(email.body_text);
+                    let finalDesign = superDecoder(email.body_text);
                     let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:#fff;font-family:sans-serif;} a{color:#2563eb;text-decoration:none;font-weight:bold;}</style></head><body>${finalDesign}</body></html>`;
                     let blobUrl = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
 
