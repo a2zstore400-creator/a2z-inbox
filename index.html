@@ -36,69 +36,119 @@
         <div id="emails-list"><div style="text-align:center; padding:40px; color:#64748b; font-weight:bold; font-size:1.2rem;">جاري تحميل صندوق الوارد...</div></div>
     </div>
 
-    <script type="module">
-        import PostalMime from 'https://cdn.jsdelivr.net/npm/postal-mime@2.2.14/+esm';
-        
+    <script>
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
-        const myApp = window.supabase.createClient(S_URL, S_KEY);
+        const myApp = supabase.createClient(S_URL, S_KEY);
 
-        window.fetchEmails = async function() {
-            const list = document.getElementById('emails-list');
-            list.innerHTML = "<div style='text-align:center; padding:40px; font-size:1.2rem;'>جاري المزامنة وفك التشفير... ⏳</div>";
-            
-            const { data, error } = await myApp.from('emails').select('*').order('created_at', { ascending: false });
-            
-            if (error) { list.innerHTML = `<div style='color:red; padding:20px;'>خطأ: ${error.message}</div>`; return; }
-            if (data.length === 0) { list.innerHTML = "<div style='text-align:center; padding:40px;'>لا توجد رسائل.</div>"; return; }
+        // محرك داخلي لفك شفرات سوني بدون مكتبات خارجية
+        function extractEmailDesign(rawEmail) {
+            if (!rawEmail) return "<div style='padding:20px'>رسالة فارغة.</div>";
 
-            // نرسم شكل الكروت الأول
-            list.innerHTML = data.map(email => `
-                <div class="email-card" id="card-${email.id}">
-                    <div class="email-header">
-                        <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف 🗑️</button>
-                        <div class="subject">${email.subject || 'بدون عنوان'}</div>
-                        <div class="meta">
-                            <span>المرسل: <span class="tag">${email.sender}</span></span>
-                            <span>التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</span>
-                        </div>
-                    </div>
-                    <iframe class="message-container" id="frame-${email.id}"></iframe>
-                </div>
-            `).join('');
-
-            // المكتبة تدخل تفك شفرة كل إيميل وتطلع التصميم الأصلي
-            const parser = new PostalMime();
-            for (let email of data) {
+            // 1. فك تشفير الـ Quoted-Printable (الرموز زي =3D)
+            const decodeQP = (str) => {
                 try {
-                    const parsedEmail = await parser.parse(email.body_text);
-                    
-                    // هندور على الـ HTML الأول، لو مفيش نجيب النص العادي
-                    let finalContent = parsedEmail.html || `<div style="padding:20px; direction:ltr; white-space:pre-wrap;">${parsedEmail.text}</div>`;
-                    
-                    // لو المكتبة ملقتش حاجة خالص!
-                    if (!parsedEmail.html && !parsedEmail.text) {
-                        finalContent = "<h3 style='color:red; text-align:center; padding:20px;'>⚠️ الرسالة غير مكتملة. يبدو أن سيرفر Cloudflare قام بقص الرسالة قبل وصولها.</h3>";
-                    }
+                    return str.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
+                } catch(e) { return str; }
+            };
 
-                    // نعرض التصميم في المربع
-                    const doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:0;background:#fff;} a{color:#2563eb;text-decoration:none;}</style></head><body>${finalContent}</body></html>`;
-                    const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
-                    document.getElementById(`frame-${email.id}`).src = URL.createObjectURL(blob);
-                } catch(e) {
-                    document.getElementById(`frame-${email.id}`).srcdoc = "<div style='padding:20px; color:red;'>حدث خطأ أثناء قراءة التصميم.</div>";
+            // 2. فك تشفير الـ Base64
+            const decodeB64 = (str) => {
+                try { return decodeURIComponent(escape(atob(str.replace(/[\s\r\n]/g, '')))); } 
+                catch(e) { 
+                    try { return atob(str.replace(/[\s\r\n]/g, '')); } catch(err) { return ""; }
                 }
+            };
+
+            // محاولة 1: البحث عن كود Base64 صريح جواه HTML (إيميلات سوني بتيجي كده)
+            let b64Match = rawEmail.match(/Content-Transfer-Encoding:\s*base64[\s\S]*?\r?\n\r?\n([\s\S]*?)(?=\r?\n--|$)/i);
+            if (b64Match && b64Match[1]) {
+                let decoded = decodeB64(b64Match[1]);
+                if (decoded.includes('<html') || decoded.includes('<body') || decoded.includes('<div')) {
+                    return decoded;
+                }
+            }
+
+            // محاولة 2: البحث الأعمى عن أي كتلة Base64 ضخمة (خطة طوارئ لسوني)
+            let blindB64Blocks = rawEmail.match(/([a-zA-Z0-9+/=]{500,})/g);
+            if (blindB64Blocks) {
+                for (let block of blindB64Blocks) {
+                    let decoded = decodeB64(block);
+                    if (decoded.includes('<html') || decoded.includes('verify')) {
+                        return decoded;
+                    }
+                }
+            }
+
+            // محاولة 3: استخراج كود HTML مباشر لو مش مشفر قوي
+            let rawClean = decodeQP(rawEmail);
+            let htmlMatch = rawClean.match(/<html[\s\S]*?<\/html>/i);
+            if (htmlMatch) {
+                return htmlMatch[0];
+            }
+
+            // محاولة 4: تنظيف النص العادي لو مفيش تصميم خالص
+            let parts = rawClean.split(/\r?\n\r?\n/);
+            let textOnly = parts.length > 1 ? parts.slice(1).join('\n\n') : rawClean;
+            textOnly = textOnly.replace(/--[a-zA-Z0-9_-]+/g, ''); // مسح الفواصل التقنية
+            
+            // تحويل الروابط
+            textOnly = textOnly.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+
+            return `<div style="padding:20px; direction:ltr; white-space:pre-wrap; font-family:sans-serif;">
+                <div style="color:#d97706; background:#fef3c7; padding:10px; border-radius:5px; margin-bottom:15px; font-weight:bold; direction:rtl;">
+                    ⚠️ هذه الرسالة قد تكون نصية فقط أو مشفرة بشكل غير كامل.
+                </div>
+                ${textOnly}
+            </div>`;
+        }
+
+        async function fetchEmails() {
+            const list = document.getElementById('emails-list');
+            try {
+                const { data, error } = await myApp.from('emails').select('*').order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                if (data.length === 0) { 
+                    list.innerHTML = "<div style='text-align:center; padding:40px; font-size:1.2rem; color:#64748b;'>صندوق الوارد فارغ حالياً. 📭</div>"; 
+                    return; 
+                }
+
+                list.innerHTML = data.map(email => {
+                    // تجهيز تصميم الرسالة
+                    let finalDesign = extractEmailDesign(email.body_text);
+                    let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:#fff;font-family:sans-serif;} a{color:#2563eb;text-decoration:none;font-weight:bold;}</style></head><body>${finalDesign}</body></html>`;
+                    let blobUrl = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
+
+                    return `
+                    <div class="email-card" id="card-${email.id}">
+                        <div class="email-header">
+                            <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف 🗑️</button>
+                            <div class="subject">${email.subject || 'بدون عنوان'}</div>
+                            <div class="meta">
+                                <span>المرسل: <span class="tag">${email.sender}</span></span>
+                                <span>التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</span>
+                            </div>
+                        </div>
+                        <iframe class="message-container" src="${blobUrl}"></iframe>
+                    </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                list.innerHTML = `<div style="color:red; text-align:center; padding:20px;">حدث خطأ: ${err.message}</div>`;
             }
         }
 
-        window.deleteEmail = async function(id) {
+        async function deleteEmail(id) {
             if(confirm('متأكد إنك عاوز تمسح الرسالة؟')) {
                 await myApp.from('emails').delete().eq('id', id);
                 document.getElementById(`card-${id}`).remove();
             }
         }
         
-        window.fetchEmails();
+        // تشغيل التحميل أول ما الصفحة تفتح
+        window.onload = fetchEmails;
     </script>
 </body>
 </html>
