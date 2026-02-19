@@ -10,20 +10,16 @@
         :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; }
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px 10px; }
         .container { max-width: 900px; margin: auto; }
-        
         .header { background: var(--primary); padding: 20px 30px; border-radius: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 10px 15px -3px rgba(0,67,156,0.3); }
         .header h1 { margin: 0; font-size: 1.8rem; }
         .refresh-btn { background: white; color: var(--primary); border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .refresh-btn:hover { transform: scale(1.05); }
-
         .email-card { background: var(--card); border-radius: 15px; margin-bottom: 30px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .email-header { padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; position: relative; }
         .subject { font-size: 1.3rem; font-weight: bold; color: #0f172a; margin-bottom: 10px; padding-left: 80px; }
         .meta { font-size: 0.9rem; color: #64748b; display: flex; gap: 15px; flex-wrap: wrap; }
         .tag { background: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 5px; font-weight: bold; }
-        
         .btn-delete { position: absolute; left: 20px; top: 20px; background: #fee2e2; color: #ef4444; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
-        
         .message-container { width: 100%; height: 750px; border: none; background: #ffffff; }
     </style>
 </head>
@@ -41,75 +37,51 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        // المحلل النهائي لرسائل الـ Multi-part
         function extractUltimateDesign(raw) {
             if (!raw) return "";
 
-            let htmlContent = "";
-            let textContent = "";
+            // 1. فك تشفير Quoted-Printable بالكامل أولاً
+            let decodedText = raw.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
 
-            // 1. تقسيم الرسالة المتعددة الأجزاء (Multi-part)
-            let boundaryMatch = raw.match(/boundary="?([^"\r\n]+)"?/i);
-            if (boundaryMatch) {
-                let parts = raw.split(boundaryMatch[1]);
-                for (let part of parts) {
-                    let isHtml = part.toLowerCase().includes("content-type: text/html");
-                    
-                    // استخراج البلوكات المشفرة من كل جزء
-                    let b64Blocks = part.match(/([A-Za-z0-9+/=\r\n]{100,})/g);
-                    if (b64Blocks) {
-                        for (let block of b64Blocks) {
-                            let clean = block.replace(/[\r\n\s]/g, '');
-                            try {
-                                let decoded = decodeURIComponent(escape(atob(clean)));
-                                // لو ده تصميم HTML
-                                if (isHtml || decoded.includes("<html") || decoded.includes("<body") || decoded.includes("<table")) {
-                                    htmlContent = decoded;
-                                } else if (!textContent) {
-                                    textContent = decoded; // حفظ النص كاحتياطي
-                                }
-                            } catch(e) {
-                                try {
-                                    let decoded = atob(clean);
-                                    if (isHtml || decoded.includes("<html") || decoded.includes("<table")) htmlContent = decoded;
-                                } catch(err){}
-                            }
-                        }
-                    }
-                }
+            // 2. البحث عن HTML صريح (احتمال سوني تكون باعتة التصميم كده)
+            let directHtmlMatch = decodedText.match(/<html[\s\S]*?<\/html>/i) || decodedText.match(/<body[\s\S]*?<\/body>/i) || decodedText.match(/<table[\s\S]*?<\/table>/i);
+            if (directHtmlMatch) {
+                return directHtmlMatch[0];
             }
 
-            // 2. الفحص الشامل لو مفيش حدود (Boundaries)
-            if (!htmlContent) {
-                let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{100,})/g);
-                if (b64Blocks) {
-                    for (let block of b64Blocks) {
-                        let clean = block.replace(/[\r\n\s]/g, '');
+            // 3. البحث جوه الـ Base64 (وتجاهل أكواد التتبع اللي ظهرتلك)
+            let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{100,})/g);
+            let textBackup = "";
+
+            if (b64Blocks) {
+                for (let block of b64Blocks) {
+                    let clean = block.replace(/[\r\n\s]/g, '');
+                    try {
+                        let decoded = decodeURIComponent(escape(atob(clean)));
+                        let lower = decoded.toLowerCase();
+                        
+                        // لو ده تصميم HTML حقيقي، رجعه فوراً!
+                        if (lower.includes("<html") || lower.includes("<body") || lower.includes("<table") || lower.includes("verify now")) {
+                            return decoded;
+                        }
+                        
+                        // حفظ النص كاحتياطي بس بشرط ميكنش كود JSON زي اللي ظهرلك
+                        if (!lower.includes('{"mid":') && decoded.length > 20) {
+                            textBackup = decoded;
+                        }
+                    } catch(e) {
                         try {
-                            let decoded = decodeURIComponent(escape(atob(clean)));
-                            if (decoded.includes("<html") || decoded.includes("<body") || decoded.includes("<table") || decoded.includes("Verify")) {
-                                htmlContent = decoded;
-                                break;
-                            } else if (!textContent) {
-                                textContent = decoded;
-                            }
-                        } catch(e) {
-                            try {
-                                let decoded = atob(clean);
-                                if (decoded.includes("<html") || decoded.includes("<table")) htmlContent = decoded;
-                            } catch(err){}
-                        }
+                            let decoded = atob(clean);
+                            if (decoded.toLowerCase().includes("<html") || decoded.toLowerCase().includes("<table")) return decoded;
+                        } catch(err){}
                     }
                 }
             }
 
-            // إرجاع النتيجة
-            if (htmlContent) return htmlContent;
-            
-            // لو فشل تماماً يعرض النص المفكوك اللي كان ظاهرلك في الصورة بس بشكل مقروء
-            if (textContent) return `<div style="padding:20px; white-space:pre-wrap; direction:ltr; font-family:sans-serif; font-size:16px;">${textContent.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')}</div>`;
+            // 4. عرض الاحتياطي لو ملقاش HTML
+            if (textBackup) return `<div style="padding:20px; white-space:pre-wrap; direction:ltr; font-family:sans-serif;">${textBackup.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')}</div>`;
 
-            return `<div style="padding:20px; white-space:pre-wrap; direction:ltr;">الرسالة مشفرة بتنسيق غير معروف.</div>`;
+            return `<div style="padding:20px; white-space:pre-wrap; direction:ltr;">تم استلام الرسالة، لكن لم يتم العثور على تصميم.</div>`;
         }
 
         async function fetchEmails() {
