@@ -25,9 +25,14 @@
         .user-info { font-weight: bold; color: #334155; font-size: 1.1rem; }
         .user-email { font-size: 0.9rem; color: var(--primary); background: #e0e7ff; padding: 6px 15px; border-radius: 20px; font-weight: bold; }
 
+        /* منطقة البحث */
+        .search-area { padding: 15px 20px; background: #fff; border-bottom: 1px solid var(--border); }
+        .search-input { width: 100%; padding: 10px 15px; border-radius: 10px; border: 1px solid var(--border); font-family: 'Cairo'; outline: none; transition: 0.3s; }
+        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,67,156,0.1); }
+
         .workspace { display: flex; flex: 1; overflow: hidden; }
         .email-list-container { width: 35%; border-left: 1px solid var(--border); background: var(--card); overflow-y: auto; }
-        .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+        .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; position: relative; }
         .email-item:hover { background: #f8fafc; }
         .email-item.selected { background: #eff6ff; border-right: 4px solid var(--primary); }
         .e-sender { font-weight: bold; font-size: 1rem; color: #0f172a; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -42,9 +47,7 @@
         .reader-actions { float: left; display: flex; gap: 10px; }
         .btn-action { color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; transition: 0.2s; }
         .btn-reply { background: #10b981; }
-        .btn-reply:hover { background: #059669; }
         .btn-delete { background: #ef4444; }
-        .btn-delete:hover { background: #dc2626; }
 
         .iframe-container { flex: 1; width: 100%; border: none; background: white; }
         
@@ -53,15 +56,11 @@
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; width: 500px; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .modal-title { margin-top: 0; margin-bottom: 20px; color: #0f172a; }
-        .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; outline: none; transition: 0.2s; }
-        .input-field:focus { border-color: var(--primary); }
+        .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Cairo'; box-sizing: border-box; outline: none; }
         .textarea-field { height: 200px; resize: vertical; }
-        .modal-actions { display: flex; justify-content: space-between; margin-top: 10px; }
-        .btn-cancel { background: #f1f5f9; color: #475569; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
-        .btn-cancel:hover { background: #e2e8f0; }
+        .modal-actions { display: flex; justify-content: space-between; }
         .btn-send { background: var(--primary); color: white; border: none; padding: 10px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
-        .btn-send:hover { background: #00337a; }
+        .btn-cancel { background: #f1f5f9; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Cairo'; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -78,6 +77,10 @@
         <div class="header">
             <div class="user-info">مرحباً، <span id="display-name" style="color:var(--primary);"></span> 👋</div>
             <div class="user-email" id="display-email"></div>
+        </div>
+
+        <div class="search-area">
+            <input type="text" class="search-input" id="search-box" placeholder="البحث في الرسائل عن طريق الاسم أو الموضوع..." oninput="filterEmails()">
         </div>
 
         <div class="workspace">
@@ -107,11 +110,10 @@
 
     <div class="modal-overlay" id="compose-modal">
         <div class="modal-box">
-            <h3 class="modal-title" id="compose-title">✏️ رسالة جديدة</h3>
-            <input type="email" id="compose-to" class="input-field" placeholder="إلى (مثال: example@gmail.com)">
+            <h3 id="compose-title">✏️ رسالة جديدة</h3>
+            <input type="email" id="compose-to" class="input-field" placeholder="إلى">
             <input type="text" id="compose-subject" class="input-field" placeholder="الموضوع">
             <textarea id="compose-body" class="input-field textarea-field" placeholder="اكتب رسالتك هنا..."></textarea>
-            
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeCompose()">إلغاء</button>
                 <button class="btn-send" id="btn-send-action" onclick="sendEmail()">إرسال 🚀</button>
@@ -130,31 +132,24 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
         let allEmails = [];
-        let currentTab = 'inbox'; 
+        let currentTab = 'inbox';
+        let lastEmailCount = 0; // لمتابعة عدد الرسائل ومعرفة لو في جديد
 
-        // 🛡️ الميزة الجديدة: عسكري الدرك (فحص الحظر الفوري)
+        // 🔔 نظام صوت الإشعارات
+        const notificationSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+
         async function checkSecurityBan() {
-            try {
-                const { data, error } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
-                if (data && data.status === 'banned') {
-                    // لو لقى حالته بقت محظور، يمسح بياناته ويطرده فوراً
-                    localStorage.removeItem('a2z_user');
-                    alert('⛔ تم حظر حسابك من قبل الإدارة. سيتم تسجيل خروجك فوراً.');
-                    window.location.href = 'index.html';
-                }
-            } catch (err) { console.log("خطأ في فحص الحماية:", err); }
+            const { data } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
+            if (data && data.status === 'banned') {
+                localStorage.removeItem('a2z_user');
+                alert('⛔ تم حظر حسابك.');
+                window.location.href = 'index.html';
+            }
         }
-
-        // تشغيل الفحص أول ما يفتح الصفحة
-        checkSecurityBan();
-        // تشغيل الفحص كل 30 ثانية في الخلفية
-        setInterval(checkSecurityBan, 30000); 
-        // --------------------------------------------------
 
         function superDecoder(raw) {
             if (!raw) return "";
-            if (!raw.includes('Content-Type:') && (raw.includes('<div') || raw.includes('<html'))) return raw; 
-
+            if (!raw.includes('Content-Type:') && (raw.includes('<div') || raw.includes('<html'))) return raw;
             const fixArabic = (str) => { try { return decodeURIComponent(escape(str)); } catch(e) { return str; } };
             try {
                 let parts = raw.split(/--_?[A-Za-z0-9=_-]+/);
@@ -170,15 +165,6 @@
                         } else { return fixArabic(bodyText); }
                     }
                 }
-                let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{300,})/g);
-                if (b64Blocks) {
-                    for (let block of b64Blocks) {
-                        try {
-                            let decoded = fixArabic(atob(block.replace(/[\s\r\n]/g, '')));
-                            if (decoded.includes('<html') || decoded.includes('PlayStation') || decoded.includes('Verify') || decoded.includes('facebook')) return decoded;
-                        } catch(e){}
-                    }
-                }
                 return `<div style="padding:20px; direction:ltr; text-align:left; font-family:monospace; white-space:pre-wrap; background:#f8fafc;">${raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
             } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
         }
@@ -188,52 +174,59 @@
             document.getElementById('tab-inbox').classList.remove('active');
             document.getElementById('tab-sent').classList.remove('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
-            
-            document.getElementById('empty-reader').style.display = 'flex';
-            document.getElementById('reader-header').style.display = 'none';
-            document.getElementById('reader-frame').style.display = 'none';
-            
+            document.getElementById('search-box').value = ''; // تصفير البحث عند التنقل
             fetchEmails();
         }
 
-        async function fetchEmails() {
+        // 🔍 دالة البحث الذكي
+        function filterEmails() {
+            const term = document.getElementById('search-box').value.toLowerCase();
             const list = document.getElementById('emails-list');
-            list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري تحميل الرسائل... ⏳</div>";
-            
+            const filtered = allEmails.filter(e => 
+                (e.sender && e.sender.toLowerCase().includes(term)) || 
+                (e.subject && e.subject.toLowerCase().includes(term)) ||
+                (e.recipient && e.recipient.toLowerCase().includes(term))
+            );
+            renderEmailList(filtered);
+        }
+
+        async function fetchEmails(isSilent = false) {
             try {
                 let query = myApp.from('emails').select('*').order('created_at', { ascending: false });
-                
-                if (currentTab === 'inbox') {
-                    query = query.eq('recipient', userData.email_address);
-                } else {
-                    query = query.ilike('sender', `%${userData.email_address}%`);
-                }
+                if (currentTab === 'inbox') { query = query.eq('recipient', userData.email_address); } 
+                else { query = query.ilike('sender', `%${userData.email_address}%`); }
 
                 const { data, error } = await query;
                 if (error) throw error;
-                allEmails = data;
 
-                if (data.length === 0) { 
-                    let icon = currentTab === 'inbox' ? '📭' : '📤';
-                    let text = currentTab === 'inbox' ? 'صندوق الوارد فارغ.' : 'لم تقم بإرسال أي رسائل.';
-                    list.innerHTML = `<div style='text-align:center; padding:40px; color:#64748b; font-weight:bold; font-size:1.1rem;'><div style='font-size:3rem; margin-bottom:10px;'>${icon}</div>${text}</div>`; 
-                    return; 
+                // 🔔 فحص لو في رسالة جديدة وصلت (في وضع الوارد فقط)
+                if (isSilent && currentTab === 'inbox' && data.length > lastEmailCount && lastEmailCount !== 0) {
+                    notificationSound.play();
                 }
+                
+                allEmails = data;
+                lastEmailCount = data.length;
+                
+                // لو مش تحديث صامت (يعني لود أول مرة أو تنقل)، ارسم القائمة
+                if (!isSilent || document.getElementById('search-box').value === '') {
+                    renderEmailList(allEmails);
+                }
+            } catch (err) { console.error(err); }
+        }
 
-                list.innerHTML = data.map((email, index) => {
-                    let displayPerson = currentTab === 'inbox' 
-                        ? email.sender.split('<')[0].replace(/"/g, '') 
-                        : `إلى: ${email.recipient}`;
-
-                    return `
-                    <div class="email-item" onclick="openEmail(${index}, this)" id="item-${email.id}">
-                        <div class="e-sender">${displayPerson}</div>
-                        <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
-                        <div class="e-date">${new Date(email.created_at).toLocaleString('ar-EG')}</div>
-                    </div>
-                    `;
-                }).join('');
-            } catch (err) { list.innerHTML = `<div style="color:red; text-align:center; padding:20px;">حدث خطأ: ${err.message}</div>`; }
+        function renderEmailList(data) {
+            const list = document.getElementById('emails-list');
+            if (data.length === 0) {
+                list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>لا توجد رسائل.</div>";
+                return;
+            }
+            list.innerHTML = data.map((email, index) => `
+                <div class="email-item" onclick="openEmail(${index}, this)" id="item-${email.id}">
+                    <div class="e-sender">${currentTab === 'inbox' ? email.sender.split('<')[0].replace(/"/g, '') : 'إلى: ' + email.recipient}</div>
+                    <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
+                    <div class="e-date">${new Date(email.created_at).toLocaleString('ar-EG')}</div>
+                </div>
+            `).join('');
         }
 
         function openEmail(index, element) {
@@ -244,30 +237,25 @@
             document.getElementById('reader-header').style.display = 'block';
             document.getElementById('reader-frame').style.display = 'block';
             document.getElementById('reader-subject').innerText = email.subject || 'بدون عنوان';
-            document.getElementById('reader-meta').innerHTML = `<strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> <strong>إلى:</strong> ${email.recipient} <br> <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}`;
+            document.getElementById('reader-meta').innerHTML = `<strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> <strong>إلى:</strong> ${email.recipient}`;
             
             document.getElementById('btn-delete-current').onclick = () => deleteEmail(email.id);
-
             document.getElementById('btn-reply-current').onclick = () => {
-                openCompose(true); 
-                let replyTo = email.sender;
-                if (replyTo.includes('<')) { replyTo = replyTo.split('<')[1].split('>')[0]; }
-                if (currentTab === 'sent') { replyTo = email.recipient; }
-
+                openCompose(true);
+                let replyTo = email.sender.includes('<') ? email.sender.split('<')[1].split('>')[0] : email.sender;
                 document.getElementById('compose-to').value = replyTo;
-                document.getElementById('compose-subject').value = email.subject.startsWith('رد:') ? email.subject : `رد: ${email.subject || ''}`;
-                document.getElementById('compose-body').focus();
+                document.getElementById('compose-subject').value = `رد: ${email.subject || ''}`;
             };
 
             let finalDesign = superDecoder(email.body_text);
-            let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:25px;background:#fff;font-family:-apple-system, sans-serif;} a{color:#2563eb;text-decoration:none;font-weight:bold;}</style></head><body>${finalDesign}</body></html>`;
+            let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:25px;font-family:sans-serif;}</style></head><body>${finalDesign}</body></html>`;
             document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
         }
 
         async function deleteEmail(id) {
-            if(confirm('هل أنت متأكد من الحذف؟')) {
+            if(confirm('حذف؟')) {
                 await myApp.from('emails').delete().eq('id', id);
-                document.getElementById(`item-${id}`).remove();
+                fetchEmails();
                 document.getElementById('empty-reader').style.display = 'flex';
                 document.getElementById('reader-header').style.display = 'none';
                 document.getElementById('reader-frame').style.display = 'none';
@@ -276,77 +264,46 @@
 
         function openCompose(isReply = false) { 
             document.getElementById('compose-modal').style.display = 'flex';
-            document.getElementById('compose-title').innerText = isReply ? '↩️ رد على الرسالة' : '✏️ رسالة جديدة';
+            document.getElementById('compose-title').innerText = isReply ? '↩️ رد' : '✏️ رسالة جديدة';
         }
-
-        function closeCompose() {
-            document.getElementById('compose-modal').style.display = 'none';
-            document.getElementById('compose-to').value = '';
-            document.getElementById('compose-subject').value = '';
-            document.getElementById('compose-body').value = '';
-        }
+        function closeCompose() { document.getElementById('compose-modal').style.display = 'none'; }
 
         async function sendEmail() {
-            // فحص أخير قبل الإرسال للتأكد إنه مش واخد بان في اللحظة دي
-            const { data: checkData } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
-            if(checkData && checkData.status === 'banned') {
-                alert('⛔ حسابك محظور. لا يمكنك إرسال رسائل.');
-                logout();
-                return;
-            }
-
-            const to = document.getElementById('compose-to').value.trim();
-            const subject = document.getElementById('compose-subject').value.trim();
-            const bodyText = document.getElementById('compose-body').value.trim();
+            const to = document.getElementById('compose-to').value;
+            const sub = document.getElementById('compose-subject').value;
+            const body = document.getElementById('compose-body').value;
             const btn = document.getElementById('btn-send-action');
-
-            if(!to || !subject || !bodyText) { alert('يرجى ملء جميع الحقول!'); return; }
-
-            btn.innerText = 'جاري الإرسال... ⏳';
+            btn.innerText = 'جاري الإرسال...';
             btn.disabled = true;
 
-            const WORKER_URL = "https://late-butterfly-bd1a.a2z-store400.workers.dev"; 
-            const htmlFormat = `<div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; font-size: 16px; color: #333;">${bodyText.replace(/\n/g, '<br>')}</div>`;
+            const WORKER_URL = "https://late-butterfly-bd1a.a2z-store400.workers.dev";
+            const html = `<div dir="rtl" style="text-align:right;">${body.replace(/\n/g, '<br>')}</div>`;
 
             try {
-                const response = await fetch(WORKER_URL, {
+                const res = await fetch(WORKER_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        from: `A2Z Mail <${userData.email_address}>`,
-                        to: to,
-                        subject: subject,
-                        html: htmlFormat
-                    })
+                    body: JSON.stringify({ from: `A2Z Mail <${userData.email_address}>`, to, subject: sub, html })
                 });
-
-                const result = await response.json();
-                
+                const result = await res.json();
                 if (result.id) {
-                    await myApp.from('emails').insert([{
-                        sender: `A2Z Mail <${userData.email_address}>`,
-                        recipient: to,
-                        subject: subject,
-                        body_text: htmlFormat
-                    }]);
-
-                    alert('تم إرسال الرسالة بنجاح! ✅');
+                    await myApp.from('emails').insert([{ sender: `A2Z Mail <${userData.email_address}>`, recipient: to, subject: sub, body_text: html }]);
+                    alert('تم الإرسال! ✅');
                     closeCompose();
-                    
                     if(currentTab === 'sent') fetchEmails();
-                } else {
-                    alert('حدث خطأ أثناء الإرسال: ' + JSON.stringify(result));
                 }
-            } catch (error) {
-                alert('حدث خطأ في الاتصال بالسيرفر! تأكد من الإنترنت.');
-            } finally {
-                btn.innerText = 'إرسال 🚀';
-                btn.disabled = false;
-            }
+            } catch (e) { alert('خطأ!'); }
+            finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
         function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
-        window.onload = fetchEmails;
+
+        // 🔄 التحديث التلقائي كل 10 ثواني (صامت) وفحص الحظر
+        window.onload = () => {
+            fetchEmails();
+            setInterval(() => fetchEmails(true), 10000); 
+            setInterval(checkSecurityBan, 30000);
+        };
     </script>
 </body>
 </html>
