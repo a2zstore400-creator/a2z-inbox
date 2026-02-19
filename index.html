@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بريد A2Z STORE - العرض المبسط</title>
+    <title>بريد A2Z STORE - المحتوى فقط</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -13,7 +13,7 @@
         .btn-refresh { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .email-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px; border-right: 5px solid #3b82f6; position: relative; }
         .subject { font-size: 1.2rem; font-weight: bold; color: #3b82f6; margin-bottom: 5px; }
-        .body-content { background: #ffffff; color: #1e293b; padding: 15px; border-radius: 8px; white-space: pre-wrap; overflow-y: auto; max-height: 400px; font-size: 1.2rem; border: 1px solid #cbd5e1; line-height: 1.6; }
+        .body-content { background: #ffffff; color: #1e293b; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-size: 1.2rem; border: 1px solid #cbd5e1; text-align: right; line-height: 1.5; }
         .btn-delete { position: absolute; top: 10px; left: 10px; background-color: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
@@ -31,28 +31,34 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        function cleanFinal(text) {
+        function extractRealMessage(text) {
             if (!text) return "";
-            // 1. فك التشفير الأساسي
-            let clean = text.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
-            clean = clean.replace(/=\r?\n/g, "");
+            
+            // 1. فك تشفير الرموز (Quoted-Printable)
+            let decoded = text.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
+            decoded = decoded.replace(/=\r?\n/g, "");
 
-            // 2. "المقص السحري": حذف أي سطر يبدأ بكلمات تقنية مملة
-            let lines = clean.split('\n');
-            let filteredLines = lines.filter(line => {
-                const lower = line.toLowerCase();
-                return !lower.startsWith('received:') && 
-                       !lower.startsWith('arc-') && 
-                       !lower.startsWith('return-path:') && 
-                       !lower.startsWith('dkim-signature:') &&
-                       !lower.startsWith('x-google') &&
-                       !lower.startsWith('authentication-results:');
-            });
+            // 2. البحث عن أول سطر لا يبدأ ببيانات تقنية
+            let lines = decoded.split('\n');
+            let realLines = [];
+            let startReading = false;
 
-            let result = filteredLines.join('\n').trim();
+            for (let line of lines) {
+                let l = line.trim().toLowerCase();
+                // إذا وجدنا سطراً فارغاً وبعده نص ليس فيه كلمات تقنية، نبدأ القراءة
+                if (l === "") { startReading = true; continue; }
+                
+                if (startReading) {
+                    // تجاهل السطور التقنية حتى لو جاءت متأخرة
+                    if (!l.startsWith('received:') && !l.startsWith('arc-') && !l.startsWith('dkim-') && !l.startsWith('x-google') && !l.startsWith('from:') && !l.startsWith('to:')) {
+                        realLines.push(line);
+                    }
+                }
+            }
 
-            // 3. تحويل الروابط
-            return result.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:blue;">$1</a>');
+            let result = realLines.join('\n').trim();
+            // إذا فشل الفلتر، اعرض النص الأصلي مخففاً
+            return result || "لم يتم العثور على نص صريح، يرجى مراجعة محتوى الرسالة.";
         }
 
         async function fetchEmails() {
@@ -66,7 +72,7 @@
                     <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف</button>
                     <div class="subject">${email.subject}</div>
                     <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;">من: ${email.sender}</div>
-                    <div class="body-content">${cleanFinal(email.body_text)}</div>
+                    <div class="body-content">${extractRealMessage(email.body_text)}</div>
                 </div>
             `).join('');
         }
