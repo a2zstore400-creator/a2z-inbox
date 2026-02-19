@@ -3,31 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بريد A2Z STORE الاحترافي</title>
+    <title>A2Z STORE Premium Mail</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #f1f5f9; color: #1e293b; margin: 0; padding: 10px; }
+        :root { --primary: #3b82f6; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; }
+        body { font-family: 'Cairo', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .container { max-width: 900px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; background: #0f172a; color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .btn-refresh { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .email-card { background: white; border-radius: 12px; margin-bottom: 20px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .email-header { padding: 15px; border-bottom: 1px solid #f1f5f9; position: relative; background: #f8fafc; }
-        .subject { font-size: 1.2rem; font-weight: bold; color: #0f172a; margin-bottom: 5px; }
-        .sender { font-size: 0.85rem; color: #64748b; }
-        .btn-delete { position: absolute; left: 15px; top: 15px; background: #ef4444; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
-        /* المربع اللي بيعرض الرسالة كأنها صفحة ويب */
-        .message-frame { width: 100%; border: none; min-height: 450px; background: white; }
-        .no-data { text-align: center; padding: 40px; color: #64748b; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #0f172a; color: white; padding: 15px 25px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .email-card { background: var(--card); border-radius: 16px; margin-bottom: 25px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .email-header { padding: 20px; border-bottom: 1px solid #f1f5f9; background: #fdfdfd; position: relative; }
+        .subject { font-size: 1.3rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; padding-left: 80px; }
+        .meta { font-size: 0.85rem; color: #64748b; }
+        .tag { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 5px; font-weight: bold; }
+        .btn-delete { position: absolute; left: 20px; top: 20px; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-delete:hover { background: #ef4444; color: white; }
+        .message-container { width: 100%; min-height: 500px; background: white; border: none; }
+        .no-msg { padding: 40px; text-align: center; color: #94a3b8; }
+        .refresh-btn { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h2 style="margin:0;">📥 بريد A2Z STORE</h2>
-            <button class="btn-refresh" onclick="fetchEmails()">تحديث 🔄</button>
+            <h2 style="margin:0;">📥 A2Z Mail Premium</h2>
+            <button class="refresh-btn" onclick="fetchEmails()">تحديث الرسائل 🔄</button>
         </div>
-        <div id="emails-list">جاري تحميل الرسائل...</div>
+        <div id="emails-list"></div>
     </div>
 
     <script>
@@ -35,46 +37,70 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        // دالة تنظيف الكود وعرضه كصفحة ويب
-        function renderEmail(text) {
-            if (!text) return "";
-            // فك التشفير الأساسي
-            let decoded = text.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
-            decoded = decoded.replace(/=\r?\n/g, "");
+        function ultimateDecoder(rawText) {
+            if (!rawText) return "رسالة فارغة";
             
-            // محاولة إيجاد كود الـ HTML داخل الرسالة
-            let htmlContent = decoded;
-            if (decoded.includes("<!DOCTYPE") || decoded.includes("<html")) {
-                 const start = decoded.indexOf("<html");
-                 htmlContent = decoded.substring(start);
+            // 1. تنظيف الـ Quoted-Printable
+            let decoded = rawText.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
+            decoded = decoded.replace(/=\r?\n/g, "");
+
+            // 2. محرك البحث عن المحتوى الحقيقي (HTML أو Base64)
+            let finalContent = "";
+            
+            if (decoded.includes("base64")) {
+                const b64Match = decoded.split("base64")[1]?.split("--")[0]?.trim();
+                if (b64Match) {
+                    try { finalContent = decodeURIComponent(escape(atob(b64Match.replace(/\s/g, '')))); } 
+                    catch(e) { finalContent = decoded; }
+                }
+            } else if (decoded.includes("<!DOCTYPE") || decoded.includes("<html")) {
+                finalContent = decoded.substring(decoded.indexOf("<html"));
+            } else {
+                // استخراج النص بعد الهيدرز
+                const parts = decoded.split(/\n\s*\n/);
+                finalContent = parts.length > 1 ? parts.slice(1).join("\n\n") : decoded;
             }
 
-            // إنشاء صفحة صغيرة داخل الإطار
-            const blob = new Blob([htmlContent], { type: 'text/html' });
+            // 3. بناء صفحة عرض آمنة واحترافية
+            const doc = `
+                <html>
+                    <head><style>body { font-family: sans-serif; line-height: 1.6; color: #333; padding: 20px; direction: ltr; }</style></head>
+                    <body>${finalContent}</body>
+                </html>`;
+            
+            const blob = new Blob([doc], { type: 'text/html' });
             return URL.createObjectURL(blob);
         }
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
+            list.innerHTML = "<div class='no-data'>جاري الفحص...</div>";
+            
             const { data, error } = await myApp.from('emails').select('*').order('created_at', { ascending: false });
             
-            if (error) { list.innerHTML = "خطأ في الاتصال!"; return; }
-            if (data.length === 0) { list.innerHTML = "<div class='no-data'>لا توجد رسائل حالياً.</div>"; return; }
+            if (error || data.length === 0) {
+                list.innerHTML = "<div class='no-msg'>لا توجد رسائل جديدة في صندوق الوارد.</div>";
+                return;
+            }
 
             list.innerHTML = data.map(email => `
                 <div class="email-card" id="card-${email.id}">
                     <div class="email-header">
                         <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف</button>
-                        <div class="subject">${email.subject}</div>
-                        <div class="sender">من: ${email.sender} | التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</div>
+                        <div class="subject">${email.subject || '(بدون عنوان)'}</div>
+                        <div class="meta">
+                            <span>من: <strong>${email.sender}</strong></span> | 
+                            <span>إلى: <span class="tag">${email.recipient}</span></span> | 
+                            <span>${new Date(email.created_at).toLocaleString('ar-EG')}</span>
+                        </div>
                     </div>
-                    <iframe class="message-frame" src="${renderEmail(email.body_text)}"></iframe>
+                    <iframe class="message-container" src="${ultimateDecoder(email.body_text)}"></iframe>
                 </div>
             `).join('');
         }
 
         async function deleteEmail(id) {
-            if(confirm('هل تريد حذف هذه الرسالة؟')) {
+            if(confirm('متأكد من حذف هذه الرسالة؟')) {
                 await myApp.from('emails').delete().eq('id', id);
                 document.getElementById(`card-${id}`).remove();
             }
