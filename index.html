@@ -14,22 +14,20 @@
         /* تصميم الهيدر الفخم */
         .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 20px 30px; border-radius: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2); }
         .header h1 { margin: 0; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
-        .refresh-btn { background: #3b82f6; color: white; border: none; padding: 12px 25px; border-radius: 12px; cursor: pointer; font-weight: 800; font-family: 'Cairo'; font-size: 1rem; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); }
-        .refresh-btn:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4); }
+        .refresh-btn { background: #3b82f6; color: white; border: none; padding: 12px 25px; border-radius: 12px; cursor: pointer; font-weight: 800; font-family: 'Cairo'; font-size: 1rem; transition: all 0.3s ease; }
+        .refresh-btn:hover { background: #2563eb; transform: translateY(-2px); }
 
         /* تصميم كروت الرسائل */
         .email-card { background: var(--card); border-radius: 20px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1); border: 1px solid #cbd5e1; }
         .email-header { padding: 25px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; position: relative; }
         .subject { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 10px; padding-left: 90px; }
         .meta { display: flex; flex-wrap: wrap; gap: 15px; font-size: 0.95rem; color: #475569; align-items: center; }
-        .tag { background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; }
+        .tag { background: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 8px; font-weight: 800; }
         
-        /* زر الحذف */
         .btn-delete { position: absolute; left: 25px; top: 25px; background: #fee2e2; color: #ef4444; border: 2px solid #fecaca; padding: 8px 20px; border-radius: 10px; cursor: pointer; font-weight: 800; font-family: 'Cairo'; transition: all 0.2s; }
         .btn-delete:hover { background: #ef4444; color: white; border-color: #ef4444; }
 
-        /* إطار عرض الرسالة */
-        .message-container { width: 100%; height: 600px; border: none; background: white; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; display: block; }
+        .message-container { width: 100%; height: 650px; border: none; background: white; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; display: block; }
         .status-msg { padding: 50px; text-align: center; color: #64748b; font-size: 1.2rem; font-weight: 600; }
     </style>
 </head>
@@ -47,95 +45,77 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        // أقوى محرك لفك الشفرات (MIME Parser)
-        function masterDecoder(rawText) {
+        // نظام X-Ray لفك تشفير سوني وأي شركة معقدة
+        function smartXRayScanner(rawText) {
             if (!rawText) return "";
 
-            let bestHtml = "";
-            let bestText = "";
+            // دالة مساعدة لعمل نافذة العرض
+            const createDisplay = (content) => {
+                const doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{font-family:sans-serif;margin:0;padding:20px;background:#fff;} img{max-width:100%;height:auto;}</style></head><body>${content}</body></html>`;
+                return URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
+            };
 
             try {
-                // 1. البحث عن الحدود الفاصلة للملفات (Boundaries)
-                let boundaryMatch = rawText.match(/boundary="?([^"\s]+)"?/i);
-                let boundary = boundaryMatch ? boundaryMatch[1] : null;
-
-                let parts = [];
-                if (boundary) {
-                    // تقسيم الرسالة لأجزاء بناءً على الحدود
-                    let splitRegex = new RegExp("--" + boundary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "g");
-                    parts = rawText.split(splitRegex);
-                } else {
-                    parts = [rawText];
-                }
-
-                // 2. تحليل كل جزء لوحده لاصطياد الـ HTML المشفر
-                for (let part of parts) {
-                    let isHtml = /Content-Type:\s*text\/html/i.test(part);
-                    let isText = /Content-Type:\s*text\/plain/i.test(part);
-                    let isBase64 = /Content-Transfer-Encoding:\s*base64/i.test(part);
-                    let isQP = /Content-Transfer-Encoding:\s*quoted-printable/i.test(part);
-
-                    // استخراج المحتوى الفعلي للجزء (بعد الأسطر الفارغة)
-                    let bodyMatch = part.match(/\r?\n\r?\n([\s\S]*)/);
-                    if (!bodyMatch) continue;
-                    let body = bodyMatch[1].trim();
-
-                    // فك التشفير
-                    if (isBase64) {
-                        try { body = decodeURIComponent(escape(atob(body.replace(/\s/g, '')))); } 
-                        catch (e) { try { body = atob(body.replace(/\s/g, '')); } catch(err){} }
-                    } else if (isQP) {
-                        body = body.replace(/=\r?\n/g, '').replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16)));
-                        try { body = decodeURIComponent(escape(body)); } catch(e) {}
-                    }
-
-                    if (isHtml) bestHtml = body;
-                    else if (isText && !bestHtml) bestText = body;
-                }
-
-                let finalBody = bestHtml || bestText;
-
-                // 3. خطة طوارئ: لو الرسالة مش متقسمة بس فيها Base64 مخفي
-                if (!finalBody) {
-                    let b64Match = rawText.match(/Content-Transfer-Encoding:\s*base64[\s\S]*?\r?\n\r?\n([\s\S]*?)(?=\r?\n--|$)/i);
-                    if (b64Match) {
-                        try { finalBody = decodeURIComponent(escape(atob(b64Match[1].replace(/\s/g, '')))); } catch(e){}
+                // 1. الفحص الشامل عن أي كود Base64 مخفي
+                // بندور على أي كتلة نصية طويلة جداً (أكثر من 150 حرف) لأن ده شكل التشفير
+                let base64Blocks = rawText.match(/([a-zA-Z0-9+/=\r\n]{150,})/g);
+                if (base64Blocks) {
+                    for (let block of base64Blocks) {
+                        let cleanBlock = block.replace(/[\r\n\s]/g, ''); // تنظيف المسافات
+                        try {
+                            let decoded = atob(cleanBlock); // فك التشفير
+                            try { decoded = decodeURIComponent(escape(decoded)); } catch(e){} // تظبيط العربي
+                            
+                            // لو الكود اللي اتفك ده طلع جواه تصميم HTML، يبقى هو ده الإيميل!
+                            if (decoded.toLowerCase().includes('<html') || decoded.toLowerCase().includes('<body')) {
+                                return createDisplay(decoded);
+                            }
+                        } catch (e) { /* لو مش كود حقيقي بنكمل تدوير */ }
                     }
                 }
+
+                // 2. البحث عن التصميم الصريح لو مش مشفر
+                let lowerText = rawText.toLowerCase();
+                let htmlIndex = lowerText.indexOf('<html');
+                if (htmlIndex === -1) htmlIndex = lowerText.indexOf('<!doctype html');
                 
-                // 4. خطة طوارئ أخيرة: استخراج كود الـ HTML المباشر
-                if (!finalBody && rawText.includes("<html")) {
-                    finalBody = rawText.substring(rawText.indexOf("<html"));
-                }
-                
-                // 5. لو كل ده فشل، اعرض النص وامسح الهيدر المعقد
-                if (!finalBody) {
-                    finalBody = rawText.replace(/^[\s\S]*?\r?\n\r?\n/, '<div style="color:red; font-weight:bold;">الرسالة مشفرة كلياً، هذا هو النص المتاح:</div><br>');
+                if (htmlIndex !== -1) {
+                    let pureHtml = rawText.substring(htmlIndex);
+                    // قص أي أكواد تقنية في آخر الرسالة
+                    pureHtml = pureHtml.split(/\n--[a-zA-Z0-9=_-]+/)[0];
+                    return createDisplay(pureHtml);
                 }
 
-                // تغليف التصميم في صفحة ويب نظيفة ومتجاوبة
-                const doc = `
-                    <!DOCTYPE html>
-                    <html dir="auto">
-                    <head>
-                        <meta charset="utf-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <style>
-                            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; padding: 20px; margin: 0; background: #fff; }
-                            img { max-width: 100%; height: auto; display: block; margin: 10px 0; }
-                            a { color: #2563eb; text-decoration: none; font-weight: bold; }
-                            a:hover { text-decoration: underline; }
-                            table { max-width: 100% !important; } /* حماية من جداول سوني العريضة */
-                        </style>
-                    </head>
-                    <body>${finalBody}</body>
-                    </html>
-                `;
+                // 3. البحث عن تشفير Quoted-Printable (تشفير تاني مشهور)
+                let qpDecoded = rawText.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, '');
+                let qpHtml = qpDecoded.toLowerCase().indexOf('<html');
+                if (qpHtml !== -1) {
+                    return createDisplay(qpDecoded.substring(qpHtml).split(/\n--/)[0]);
+                }
+
+                // 4. خطة الطوارئ: لو الرسالة نص عادي بس، نمسح الهيدرز التقنية تماماً
+                let parts = rawText.split(/\n\s*\n/);
+                let bodyOnly = parts.length > 1 ? parts.slice(1).join('\n\n') : rawText;
                 
-                return URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
+                // مسح أي بقايا للسيرفر
+                bodyOnly = bodyOnly.replace(/--[a-zA-Z0-9=_-]+/g, ''); 
+                bodyOnly = bodyOnly.replace(/Content-Type:.*?\n/gi, '');
+                bodyOnly = bodyOnly.replace(/Content-Transfer-Encoding:.*?\n/gi, '');
+                
+                // تفعيل الروابط
+                let linkedText = bodyOnly.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+
+                return createDisplay(`
+                    <div style="direction:rtl; text-align:right;">
+                        <div style="background:#fef2f2; color:#991b1b; padding:10px; border-radius:8px; margin-bottom:15px; font-weight:bold;">
+                            ⚠️ هذه الرسالة لا تحتوي على تصميم صوري، هذا هو النص المتاح:
+                        </div>
+                        <pre style="white-space:pre-wrap; direction:ltr; text-align:left; font-size:15px; color:#1e293b; font-family:monospace;">${linkedText}</pre>
+                    </div>
+                `);
 
             } catch (error) {
-                return URL.createObjectURL(new Blob([rawText], { type: 'text/plain;charset=utf-8' }));
+                return createDisplay("<div style='color:red; text-align:center;'>عفواً، حدث خطأ أثناء تحليل هذه الرسالة المعقدة.</div>");
             }
         }
 
@@ -146,11 +126,11 @@
             const { data, error } = await myApp.from('emails').select('*').order('created_at', { ascending: false });
             
             if (error) {
-                list.innerHTML = `<div class='status-msg' style='color:red;'>حدث خطأ في الاتصال: ${error.message}</div>`;
+                list.innerHTML = `<div class='status-msg' style='color:red;'>حدث خطأ: ${error.message}</div>`;
                 return;
             }
             if (data.length === 0) {
-                list.innerHTML = "<div class='status-msg'>صندوق الوارد فارغ. لا توجد رسائل جديدة. 📭</div>";
+                list.innerHTML = "<div class='status-msg'>صندوق الوارد فارغ. 📭</div>";
                 return;
             }
 
@@ -165,13 +145,13 @@
                             <span>التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</span>
                         </div>
                     </div>
-                    <iframe class="message-container" src="${masterDecoder(email.body_text)}"></iframe>
+                    <iframe class="message-container" src="${smartXRayScanner(email.body_text)}"></iframe>
                 </div>
             `).join('');
         }
 
         async function deleteEmail(id) {
-            if(confirm('هل أنت متأكد من حذف هذه الرسالة نهائياً؟')) {
+            if(confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
                 await myApp.from('emails').delete().eq('id', id);
                 document.getElementById(`card-${id}`).remove();
             }
