@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بريد A2Z STORE الاحترافي</title>
+    <title>بريد A2Z STORE - العرض المبسط</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -12,11 +12,9 @@
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 20px; }
         .btn-refresh { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .email-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px; border-right: 5px solid #3b82f6; position: relative; }
-        .subject { font-size: 1.2rem; font-weight: bold; color: #3b82f6; margin-bottom: 10px; }
-        .email-info { font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px; background: #0f172a; padding: 8px; border-radius: 6px; }
-        .body-content { background: #ffffff; color: #1e293b; padding: 15px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; overflow-y: auto; max-height: 400px; font-size: 1.1rem; border: 1px solid #cbd5e1; text-align: right; }
+        .subject { font-size: 1.2rem; font-weight: bold; color: #3b82f6; margin-bottom: 5px; }
+        .body-content { background: #ffffff; color: #1e293b; padding: 15px; border-radius: 8px; white-space: pre-wrap; overflow-y: auto; max-height: 400px; font-size: 1.2rem; border: 1px solid #cbd5e1; line-height: 1.6; }
         .btn-delete { position: absolute; top: 10px; left: 10px; background-color: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
-        a { color: #2563eb; text-decoration: underline; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -33,57 +31,50 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        // دالة ذكية لفك تشفير النصوص العربية والروابط
-        function smartDecode(text) {
+        function cleanFinal(text) {
             if (!text) return "";
-            
-            let content = text;
+            // 1. فك التشفير الأساسي
+            let clean = text.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
+            clean = clean.replace(/=\r?\n/g, "");
 
-            // 1. التعامل مع تشفير Quoted-Printable (زي =D8=A7)
-            content = content.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
-            content = content.replace(/=\r?\n/g, "");
-
-            // 2. محاولة فك تشفير UTF-8 لظهور العربي صح
-            try {
-                content = decodeURIComponent(escape(content));
-            } catch (e) {
-                // نترك النص كما هو إذا فشل التحويل
-            }
-
-            // 3. تنظيف البيانات التقنية (Headers) والاحتفاظ بمحتوى الرسالة
-            const parts = content.split(/\r?\n\r?\n/);
-            let finalResult = parts.length > 1 ? parts.slice(1).join("\n\n") : content;
-
-            // 4. تحويل الروابط لروابط قابلة للضغط
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            return finalResult.replace(urlRegex, function(url) {
-                return '<a href="' + url + '" target="_blank">' + url + '</a>';
+            // 2. "المقص السحري": حذف أي سطر يبدأ بكلمات تقنية مملة
+            let lines = clean.split('\n');
+            let filteredLines = lines.filter(line => {
+                const lower = line.toLowerCase();
+                return !lower.startsWith('received:') && 
+                       !lower.startsWith('arc-') && 
+                       !lower.startsWith('return-path:') && 
+                       !lower.startsWith('dkim-signature:') &&
+                       !lower.startsWith('x-google') &&
+                       !lower.startsWith('authentication-results:');
             });
+
+            let result = filteredLines.join('\n').trim();
+
+            // 3. تحويل الروابط
+            return result.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:blue;">$1</a>');
         }
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
             const { data, error } = await myApp.from('emails').select('*').order('created_at', { ascending: false });
-            
-            if (error) { list.innerHTML = "حدث خطأ!"; return; }
-            if (data.length === 0) { list.innerHTML = "لا توجد رسائل حالياً."; return; }
+            if (error) { list.innerHTML = "خطأ!"; return; }
+            if (data.length === 0) { list.innerHTML = "لا توجد رسائل."; return; }
 
             list.innerHTML = data.map(email => `
                 <div class="email-card" id="card-${email.id}">
                     <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف</button>
                     <div class="subject">${email.subject}</div>
-                    <div class="email-info">من: ${email.sender} <br> التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</div>
-                    <div class="body-content">${smartDecode(email.body_text)}</div>
+                    <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;">من: ${email.sender}</div>
+                    <div class="body-content">${cleanFinal(email.body_text)}</div>
                 </div>
             `).join('');
         }
 
         async function deleteEmail(id) {
-            if(confirm('هل تريد حذف هذه الرسالة؟')) {
-                const { error } = await myApp.from('emails').delete().eq('id', id);
-                if (!error) {
-                    document.getElementById(`card-${id}`).remove();
-                }
+            if(confirm('حذف؟')) {
+                await myApp.from('emails').delete().eq('id', id);
+                document.getElementById(`card-${id}`).remove();
             }
         }
         window.onload = fetchEmails;
