@@ -1,66 +1,40 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A2Z Mail Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; color: white; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 20px; }
-        .btn-refresh { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .email-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; border-right: 5px solid #3b82f6; transition: 0.3s; }
-        .email-card:hover { background: #334155; }
-        .email-info { font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; }
-        .subject { font-size: 1.2rem; font-weight: bold; color: #f1f5f9; }
-        .body-content { background: #0f172a; padding: 10px; border-radius: 6px; font-family: monospace; color: #22c55e; white-space: pre-wrap; margin-top: 10px; }
-        .tag { background: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>📥 بريد A2Z STORE</h1>
-            <button class="btn-refresh" onclick="fetchEmails()">تحديث الرسائل 🔄</button>
-        </div>
-        <div id="emails-list">تحميل الرسائل...</div>
-    </div>
+<script>
+    const SUPABASE_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
 
-    <script>
-        // ضع بياناتك هنا (نفس اللي حطيناها في Cloudflare)
-        const SUPABASE_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop'; // استخدم الـ Public Key هنا
+    // التعديل هنا: غيرنا اسم المتغير لـ _supabase
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    async function fetchEmails() {
+        const list = document.getElementById('emails-list');
+        const { data, error } = await _supabase
+            .from('emails')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        async function fetchEmails() {
-            const list = document.getElementById('emails-list');
-            const { data, error } = await supabase
-                .from('emails')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                list.innerHTML = "خطأ في تحميل البيانات!";
-                return;
-            }
-
-            list.innerHTML = data.map(email => `
-                <div class="email-card">
-                    <div class="email-info">
-                        <span>من: ${email.sender}</span> | 
-                        <span>إلى: <span class="tag">${email.recipient}</span></span> | 
-                        <span>التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</span>
-                    </div>
-                    <div class="subject">${email.subject}</div>
-                    <div class="body-content">${email.body_text}</div>
-                </div>
-            `).join('');
+        if (error) {
+            console.error(error);
+            list.innerHTML = "خطأ في تحميل البيانات!";
+            return;
         }
 
-        fetchEmails();
-    </script>
-</body>
-</html>
+        if (data.length === 0) {
+            list.innerHTML = "لا توجد رسائل حالياً.";
+            return;
+        }
+
+        list.innerHTML = data.map(email => `
+            <div class="email-card">
+                <div class="email-info">
+                    <span>من: ${email.sender}</span> | 
+                    <span>إلى: <span class="tag">${email.recipient}</span></span> | 
+                    <span>التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</span>
+                </div>
+                <div class="subject">${email.subject}</div>
+                <div class="body-content">${email.body_text}</div>
+            </div>
+        `).join('');
+    }
+
+    fetchEmails();
+</script>
