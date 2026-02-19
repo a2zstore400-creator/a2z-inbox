@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بريد A2Z STORE</title>
+    <title>لوحة تحكم بريد A2Z STORE</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #0f172a; color: white; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
+        .container { max-width: 1000px; margin: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 20px; }
         .btn-refresh { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .email-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 15px; border-right: 5px solid #3b82f6; }
-        .email-info { font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; }
-        .subject { font-size: 1.2rem; font-weight: bold; color: #f1f5f9; }
-        .body-content { background: #0f172a; padding: 10px; border-radius: 6px; font-family: monospace; color: #22c55e; white-space: pre-wrap; margin-top: 10px; }
-        .tag { background: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .email-card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-right: 5px solid #3b82f6; position: relative; }
+        .email-info { font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; line-height: 1.6; }
+        .subject { font-size: 1.3rem; font-weight: bold; color: #f1f5f9; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        .body-content { background: #070c18; padding: 15px; border-radius: 8px; font-family: monospace; color: #e2e8f0; white-space: pre-wrap; word-break: break-all; overflow-x: auto; max-height: 500px; }
+        .tag { background: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: white; }
+        .btn-delete { position: absolute; top: 15px; left: 15px; background-color: #ef4444; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        a { color: #60a5fa; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -31,8 +33,15 @@
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
 
-        // استخدام اسم مختلف تماماً لتجنب التكرار
         const myApp = supabase.createClient(S_URL, S_KEY);
+
+        // دالة لتحويل الروابط لنصوص قابلة للضغط
+        function linkify(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, function(url) {
+                return '<a href="' + url + '" target="_blank">' + url + '</a>';
+            });
+        }
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
@@ -47,24 +56,35 @@
             }
 
             if (data.length === 0) {
-                list.innerHTML = "لا توجد رسائل حالياً.";
+                list.innerHTML = "<p style='text-align:center;'>لا توجد رسائل حالياً.</p>";
                 return;
             }
 
             list.innerHTML = data.map(email => `
-                <div class="email-card">
+                <div class="email-card" id="card-${email.id}">
+                    <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف 🗑️</button>
                     <div class="email-info">
-                        <span>من: ${email.sender}</span> | 
-                        <span>إلى: <span class="tag">${email.recipient}</span></span> | 
-                        <span>التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</span>
+                        <strong>من:</strong> ${email.sender} <br>
+                        <strong>إلى:</strong> <span class="tag">${email.recipient}</span> <br>
+                        <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}
                     </div>
                     <div class="subject">${email.subject}</div>
-                    <div class="body-content">${email.body_text}</div>
+                    <div class="body-content">${linkify(email.body_text)}</div>
                 </div>
             `).join('');
         }
 
-        // تشغيل التحميل تلقائياً عند فتح الصفحة
+        async function deleteEmail(id) {
+            if(confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
+                const { error } = await myApp.from('emails').delete().eq('id', id);
+                if (error) {
+                    alert("خطأ في الحذف: " + error.message);
+                } else {
+                    document.getElementById(`card-${id}`).remove();
+                }
+            }
+        }
+
         window.onload = fetchEmails;
     </script>
 </body>
