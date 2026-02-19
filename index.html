@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بريد A2Z STORE الذكي</title>
+    <title>بريد A2Z STORE الاحترافي</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -14,7 +14,7 @@
         .email-card { background: #1e293b; border-radius: 12px; padding: 15px; margin-bottom: 20px; border-right: 5px solid #3b82f6; position: relative; }
         .subject { font-size: 1.2rem; font-weight: bold; color: #3b82f6; margin-bottom: 10px; }
         .email-info { font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px; background: #0f172a; padding: 8px; border-radius: 6px; }
-        .body-content { background: #ffffff; color: #1e293b; padding: 15px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; overflow-y: auto; max-height: 400px; font-size: 1.1rem; border: 1px solid #cbd5e1; }
+        .body-content { background: #ffffff; color: #1e293b; padding: 15px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; overflow-y: auto; max-height: 400px; font-size: 1.1rem; border: 1px solid #cbd5e1; text-align: right; }
         .btn-delete { position: absolute; top: 10px; left: 10px; background-color: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
         a { color: #2563eb; text-decoration: underline; font-weight: bold; }
     </style>
@@ -33,47 +33,57 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        function cleanEmailBody(text) {
+        // دالة ذكية لفك تشفير النصوص العربية والروابط
+        function smartDecode(text) {
             if (!text) return "";
-            // فك التشفير الأساسي
-            let clean = text.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
-            clean = clean.replace(/=\r?\n/g, "");
             
-            // محاولة استخراج النص الصافي فقط وتجاهل البيانات التقنية
-            const parts = clean.split(/\r?\n\r?\n/);
-            // لو الرسالة طويلة، غالباً النص الحقيقي بيكون بعد أول سطرين فاضيين
-            let mainContent = parts.length > 1 ? parts.slice(1).join("\n\n") : clean;
-            
-            // تنظيف من بقايا الـ Headers لو لسه موجودة
-            if (mainContent.includes("Content-Type:")) {
-                const subParts = mainContent.split("Content-Transfer-Encoding: 7bit");
-                if (subParts.length > 1) mainContent = subParts[1];
+            let content = text;
+
+            // 1. التعامل مع تشفير Quoted-Printable (زي =D8=A7)
+            content = content.replace(/=([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
+            content = content.replace(/=\r?\n/g, "");
+
+            // 2. محاولة فك تشفير UTF-8 لظهور العربي صح
+            try {
+                content = decodeURIComponent(escape(content));
+            } catch (e) {
+                // نترك النص كما هو إذا فشل التحويل
             }
 
-            // تحويل الروابط
-            return mainContent.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+            // 3. تنظيف البيانات التقنية (Headers) والاحتفاظ بمحتوى الرسالة
+            const parts = content.split(/\r?\n\r?\n/);
+            let finalResult = parts.length > 1 ? parts.slice(1).join("\n\n") : content;
+
+            // 4. تحويل الروابط لروابط قابلة للضغط
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return finalResult.replace(urlRegex, function(url) {
+                return '<a href="' + url + '" target="_blank">' + url + '</a>';
+            });
         }
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
             const { data, error } = await myApp.from('emails').select('*').order('created_at', { ascending: false });
-            if (error) { list.innerHTML = "خطأ!"; return; }
-            if (data.length === 0) { list.innerHTML = "لا توجد رسائل."; return; }
+            
+            if (error) { list.innerHTML = "حدث خطأ!"; return; }
+            if (data.length === 0) { list.innerHTML = "لا توجد رسائل حالياً."; return; }
 
             list.innerHTML = data.map(email => `
                 <div class="email-card" id="card-${email.id}">
                     <button class="btn-delete" onclick="deleteEmail(${email.id})">حذف</button>
                     <div class="subject">${email.subject}</div>
                     <div class="email-info">من: ${email.sender} <br> التاريخ: ${new Date(email.created_at).toLocaleString('ar-EG')}</div>
-                    <div class="body-content">${cleanEmailBody(email.body_text)}</div>
+                    <div class="body-content">${smartDecode(email.body_text)}</div>
                 </div>
             `).join('');
         }
 
         async function deleteEmail(id) {
-            if(confirm('حذف؟')) {
-                await myApp.from('emails').delete().eq('id', id);
-                document.getElementById(`card-${id}`).remove();
+            if(confirm('هل تريد حذف هذه الرسالة؟')) {
+                const { error } = await myApp.from('emails').delete().eq('id', id);
+                if (!error) {
+                    document.getElementById(`card-${id}`).remove();
+                }
             }
         }
         window.onload = fetchEmails;
