@@ -38,8 +38,15 @@
         .reader-header { padding: 25px; border-bottom: 1px solid var(--border); background: #f8fafc; display: none; }
         .reader-subject { font-size: 1.5rem; font-weight: bold; color: #0f172a; margin-bottom: 15px; }
         .reader-meta { font-size: 0.95rem; color: #64748b; line-height: 1.6; }
-        .btn-delete { background: #ef4444; color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; float: left; transition: 0.2s; }
+        
+        /* أزرار الإجراءات في الرسالة */
+        .reader-actions { float: left; display: flex; gap: 10px; }
+        .btn-action { color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; transition: 0.2s; }
+        .btn-reply { background: #10b981; }
+        .btn-reply:hover { background: #059669; }
+        .btn-delete { background: #ef4444; }
         .btn-delete:hover { background: #dc2626; }
+
         .iframe-container { flex: 1; width: 100%; border: none; background: white; }
         
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; }
@@ -87,7 +94,10 @@
                 </div>
 
                 <div class="reader-header" id="reader-header">
-                    <button class="btn-delete" id="btn-delete-current">حذف الرسالة 🗑️</button>
+                    <div class="reader-actions">
+                        <button class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
+                        <button class="btn-action btn-delete" id="btn-delete-current">حذف 🗑️</button>
+                    </div>
                     <div class="reader-subject" id="reader-subject"></div>
                     <div class="reader-meta" id="reader-meta"></div>
                 </div>
@@ -98,7 +108,7 @@
 
     <div class="modal-overlay" id="compose-modal">
         <div class="modal-box">
-            <h3 class="modal-title">✏️ رسالة جديدة</h3>
+            <h3 class="modal-title" id="compose-title">✏️ رسالة جديدة</h3>
             <input type="email" id="compose-to" class="input-field" placeholder="إلى (مثال: example@gmail.com)">
             <input type="text" id="compose-subject" class="input-field" placeholder="الموضوع">
             <textarea id="compose-body" class="input-field textarea-field" placeholder="اكتب رسالتك هنا..."></textarea>
@@ -121,12 +131,16 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
         let allEmails = [];
-        
-        // متغير عشان نعرف إحنا واقفين في الوارد ولا المرسل
         let currentTab = 'inbox'; 
 
         function superDecoder(raw) {
             if (!raw) return "";
+            
+            // التعديل الجديد: لو الرسالة مرسلة من عندنا ومش مشفرة، اعرضها مباشرة
+            if (!raw.includes('Content-Type:') && (raw.includes('<div') || raw.includes('<html'))) {
+                return raw; 
+            }
+
             const fixArabic = (str) => { try { return decodeURIComponent(escape(str)); } catch(e) { return str; } };
             try {
                 let parts = raw.split(/--_?[A-Za-z0-9=_-]+/);
@@ -155,14 +169,12 @@
             } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
         }
 
-        // دالة التنقل بين الوارد والمرسل
         function loadTab(tab) {
             currentTab = tab;
             document.getElementById('tab-inbox').classList.remove('active');
             document.getElementById('tab-sent').classList.remove('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
             
-            // قفل شاشة القراءة المفتوحة
             document.getElementById('empty-reader').style.display = 'flex';
             document.getElementById('reader-header').style.display = 'none';
             document.getElementById('reader-frame').style.display = 'none';
@@ -175,7 +187,6 @@
             list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري تحميل الرسائل... ⏳</div>";
             
             try {
-                // الفلتر الذكي: لو وارد يجيب اللي مبعوتلي، لو مرسل يجيب اللي أنا باعتها
                 let query = myApp.from('emails').select('*').order('created_at', { ascending: false });
                 
                 if (currentTab === 'inbox') {
@@ -196,7 +207,6 @@
                 }
 
                 list.innerHTML = data.map((email, index) => {
-                    // لو في الوارد نظهر اسم اللي بعتلي، ولو في المرسل نظهر إحنا بعتنا لمين
                     let displayPerson = currentTab === 'inbox' 
                         ? email.sender.split('<')[0].replace(/"/g, '') 
                         : `إلى: ${email.recipient}`;
@@ -221,7 +231,28 @@
             document.getElementById('reader-frame').style.display = 'block';
             document.getElementById('reader-subject').innerText = email.subject || 'بدون عنوان';
             document.getElementById('reader-meta').innerHTML = `<strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> <strong>إلى:</strong> ${email.recipient} <br> <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}`;
+            
+            // برمجة زرار الحذف
             document.getElementById('btn-delete-current').onclick = () => deleteEmail(email.id);
+
+            // برمجة زرار الرد (Reply)
+            document.getElementById('btn-reply-current').onclick = () => {
+                openCompose(true); // نفتح نافذة الإرسال في وضع الـ Reply
+                
+                // استخراج الإيميل للرد عليه
+                let replyTo = email.sender;
+                if (replyTo.includes('<')) {
+                    replyTo = replyTo.split('<')[1].split('>')[0]; // استخراج الإيميل الصافي من بين الأقواس
+                }
+                
+                // لو إحنا في البريد المرسل وعايزين نعمل رد، يبقى هنرد على المستلم
+                if (currentTab === 'sent') { replyTo = email.recipient; }
+
+                document.getElementById('compose-to').value = replyTo;
+                document.getElementById('compose-subject').value = email.subject.startsWith('رد:') ? email.subject : `رد: ${email.subject || ''}`;
+                document.getElementById('compose-body').focus();
+            };
+
             let finalDesign = superDecoder(email.body_text);
             let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:25px;background:#fff;font-family:-apple-system, sans-serif;} a{color:#2563eb;text-decoration:none;font-weight:bold;}</style></head><body>${finalDesign}</body></html>`;
             document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
@@ -237,7 +268,11 @@
             }
         }
 
-        function openCompose() { document.getElementById('compose-modal').style.display = 'flex'; }
+        function openCompose(isReply = false) { 
+            document.getElementById('compose-modal').style.display = 'flex';
+            document.getElementById('compose-title').innerText = isReply ? '↩️ رد على الرسالة' : '✏️ رسالة جديدة';
+        }
+
         function closeCompose() {
             document.getElementById('compose-modal').style.display = 'none';
             document.getElementById('compose-to').value = '';
@@ -274,7 +309,6 @@
                 const result = await response.json();
                 
                 if (result.id) {
-                    // التعديل السحري: إدراج نسخة في قاعدة البيانات عشان تظهر في المرسل
                     await myApp.from('emails').insert([{
                         sender: `A2Z Mail <${userData.email_address}>`,
                         recipient: to,
@@ -285,7 +319,6 @@
                     alert('تم إرسال الرسالة بنجاح! ✅');
                     closeCompose();
                     
-                    // تحديث القائمة فوراً لو إحنا واقفين في البريد المرسل
                     if(currentTab === 'sent') fetchEmails();
                 } else {
                     alert('حدث خطأ أثناء الإرسال: ' + JSON.stringify(result));
