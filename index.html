@@ -11,10 +11,10 @@
         .container { max-width: 1000px; margin: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 20px; }
         .btn-refresh { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .email-card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-right: 5px solid #3b82f6; position: relative; }
+        .email-card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-right: 5px solid #3b82f6; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .email-info { font-size: 0.9rem; color: #94a3b8; margin-bottom: 10px; line-height: 1.6; }
         .subject { font-size: 1.3rem; font-weight: bold; color: #f1f5f9; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
-        .body-content { background: #070c18; padding: 15px; border-radius: 8px; font-family: monospace; color: #e2e8f0; white-space: pre-wrap; word-break: break-all; overflow-x: auto; max-height: 500px; }
+        .body-content { background: #070c18; padding: 15px; border-radius: 8px; font-family: 'Cairo', sans-serif; color: #e2e8f0; white-space: pre-wrap; word-break: break-word; overflow-x: auto; max-height: 600px; border: 1px solid #1e293b; }
         .tag { background: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: white; }
         .btn-delete { position: absolute; top: 15px; left: 15px; background-color: #ef4444; color: white; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
         a { color: #60a5fa; text-decoration: underline; }
@@ -35,10 +35,28 @@
 
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        // دالة لتحويل الروابط لنصوص قابلة للضغط
-        function linkify(text) {
+        // دالة متطورة لفك تشفير العربي وتحويل الروابط
+        function formatEmailBody(text) {
+            if (!text) return "";
+            
+            // 1. فك تشفير الرموز (Quoted-Printable) زي الـ =E2
+            let decoded = text.replace(/=([0-9A-F]{2})/g, (match, p1) => {
+                return String.fromCharCode(parseInt(p1, 16));
+            });
+
+            // 2. محاولة تحويل الـ UTF-8 إذا كان النص مشفرًا
+            try {
+                decoded = decodeURIComponent(escape(decoded));
+            } catch (e) {
+                // إذا فشل التحويل نترك النص كما هو بعد الخطوة الأولى
+            }
+
+            // 3. مسح علامات الـ "=" الزائدة في نهاية السطور
+            decoded = decoded.replace(/=\r?\n/g, "");
+
+            // 4. تحويل الروابط لنصوص قابلة للضغط
             const urlRegex = /(https?:\/\/[^\s]+)/g;
-            return text.replace(urlRegex, function(url) {
+            return decoded.replace(urlRegex, function(url) {
                 return '<a href="' + url + '" target="_blank">' + url + '</a>';
             });
         }
@@ -69,7 +87,7 @@
                         <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}
                     </div>
                     <div class="subject">${email.subject}</div>
-                    <div class="body-content">${linkify(email.body_text)}</div>
+                    <div class="body-content">${formatEmailBody(email.body_text)}</div>
                 </div>
             `).join('');
         }
