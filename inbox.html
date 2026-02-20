@@ -3,20 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A2Z STORE | صندوق الوارد</title>
+    <title>A2Z Mail | صندوق الوارد</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
         
-        /* ألوان الوضع الليلي */
-        body.dark-mode {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --text: #f1f5f9;
-            --border: #334155;
-            --primary: #60a5fa;
-        }
+        body.dark-mode { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: #334155; --primary: #60a5fa; }
 
         body { font-family: 'Cairo', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; }
 
@@ -27,7 +20,6 @@
         .menu-item.active { background: #e0e7ff; color: var(--primary); }
         .menu-item:hover:not(.active) { background: #f1f5f9; color: var(--primary); }
         
-        /* تعديلات القائمة في الوضع الليلي */
         body.dark-mode .menu-item { color: #cbd5e1; }
         body.dark-mode .menu-item.active { background: #334155; color: var(--primary); }
         body.dark-mode .menu-item:hover:not(.active) { background: #334155; color: var(--primary); }
@@ -102,6 +94,8 @@
         <button class="btn-compose" onclick="openCompose()">✏️ إنشاء رسالة</button>
         <div class="menu-item active" id="tab-inbox" onclick="loadTab('inbox')">📥 البريد الوارد</div>
         <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
+        
+        <div class="menu-item" onclick="window.location.href='profile.html'">⚙️ إعدادات الحساب</div>
         
         <div class="menu-item" id="btn-theme" onclick="toggleTheme()" style="margin-top: 20px;">🌙 الوضع الليلي</div>
         
@@ -188,7 +182,6 @@
             localStorage.setItem('a2z_theme', isDark ? 'dark' : 'light');
             document.getElementById('btn-theme').innerText = isDark ? '☀️ الوضع النهاري' : '🌙 الوضع الليلي';
             
-            // تحديث عرض الرسالة لو مفتوحة عشان الألوان تتظبط جوه الـ iframe
             const activeEmail = document.querySelector('.email-item.selected');
             if (activeEmail) { activeEmail.click(); }
         }
@@ -324,7 +317,6 @@
 
             let finalDesign = superDecoder(email.body_text);
             
-            // 🌙 ضبط ألوان الـ Iframe حسب الوضع الليلي
             let isDark = document.body.classList.contains('dark-mode');
             let bgCol = isDark ? '#1e293b' : '#fff';
             let txtCol = isDark ? '#f1f5f9' : '#000';
