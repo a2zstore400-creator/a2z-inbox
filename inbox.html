@@ -10,7 +10,6 @@
         :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
         body.dark-mode { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: #334155; --primary: #60a5fa; }
 
-        /* شريط التمرير الأنيق */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -43,7 +42,6 @@
 
         .workspace { display: flex; flex: 1; overflow: hidden; }
         
-        /* قسم القائمة والبحث */
         .email-list-wrapper { width: 35%; border-left: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; transition: background 0.3s, border-color 0.3s; }
         .search-container { padding: 15px; border-bottom: 1px solid var(--border); background: var(--card); }
         .search-input { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: 20px; font-family: 'Cairo'; font-size: 0.9rem; outline: none; background: var(--bg); color: var(--text); box-sizing: border-box; transition: 0.2s; }
@@ -70,12 +68,12 @@
         .reader-meta { font-size: 0.95rem; color: #64748b; line-height: 1.6; }
         body.dark-mode .reader-meta { color: #cbd5e1; }
         
-        .reader-actions { float: left; display: flex; gap: 10px; }
-        .btn-action { color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; transition: 0.2s; }
-        .btn-reply { background: #10b981; }
-        .btn-reply:hover { background: #059669; }
-        .btn-delete { background: #ef4444; }
-        .btn-delete:hover { background: #dc2626; }
+        .reader-actions { float: left; display: flex; gap: 8px; }
+        .btn-action { color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; transition: 0.2s; font-size: 0.9rem; }
+        .btn-reply { background: #10b981; } .btn-reply:hover { background: #059669; }
+        .btn-forward { background: #3b82f6; } .btn-forward:hover { background: #2563eb; }
+        .btn-print { background: #64748b; } .btn-print:hover { background: #475569; }
+        .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; }
 
         .iframe-container { flex: 1; width: 100%; border: none; background: transparent; }
         
@@ -84,12 +82,13 @@
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: var(--card); width: 600px; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: background 0.3s; }
-        .modal-title { margin-top: 0; margin-bottom: 20px; color: var(--text); }
+        .modal-title { margin-top: 0; margin-bottom: 10px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
+        .draft-badge { font-size: 0.8rem; background: #fef3c7; color: #d97706; padding: 4px 10px; border-radius: 20px; display: none; }
+        
         .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; outline: none; transition: 0.2s; background: var(--card); color: var(--text); }
         .input-field:focus { border-color: var(--primary); }
         body.dark-mode .input-field { background: var(--bg); border: 1px solid var(--border); }
         
-        /* ستايل المحرر الاحترافي */
         .editor-toolbar { display: flex; gap: 5px; padding: 10px; background: #f8fafc; border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; }
         body.dark-mode .editor-toolbar { background: #1e293b; border-color: var(--border); }
         .editor-btn { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 5px 10px; border-radius: 5px; color: var(--text); font-weight: bold; }
@@ -157,21 +156,27 @@
                 <div class="reader-header" id="reader-header">
                     <div class="reader-actions">
                         <button class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
+                        <button class="btn-action btn-forward" id="btn-forward-current">إعادة توجيه ➡️</button>
+                        <button class="btn-action btn-print" id="btn-print-current">طباعة 🖨️</button>
                         <button class="btn-action btn-delete" id="btn-delete-current">حذف 🗑️</button>
                     </div>
                     <div class="reader-subject" id="reader-subject"></div>
                     <div class="reader-meta" id="reader-meta"></div>
                 </div>
-                <iframe class="iframe-container" id="reader-frame" style="display:none;"></iframe>
+                <iframe class="iframe-container" id="reader-frame" style="display:none;" name="reader-frame"></iframe>
             </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="compose-modal">
         <div class="modal-box">
-            <h3 class="modal-title" id="compose-title">✏️ رسالة جديدة</h3>
-            <input type="email" id="compose-to" class="input-field" placeholder="إلى (مثال: example@gmail.com)">
-            <input type="text" id="compose-subject" class="input-field" placeholder="الموضوع">
+            <h3 class="modal-title">
+                <span id="compose-title">✏️ رسالة جديدة</span>
+                <span class="draft-badge" id="draft-badge">تم حفظ المسودة 💾</span>
+            </h3>
+            
+            <input type="email" id="compose-to" class="input-field" placeholder="إلى (مثال: example@gmail.com)" oninput="saveDraft()">
+            <input type="text" id="compose-subject" class="input-field" placeholder="الموضوع" oninput="saveDraft()">
             
             <div class="editor-toolbar">
                 <button class="editor-btn" onclick="execCmd('bold')" title="عريض"><b>B</b></button>
@@ -179,7 +184,7 @@
                 <button class="editor-btn" onclick="execCmd('underline')" title="تحته خط"><u>U</u></button>
                 <button class="editor-btn" onclick="insertLink()" title="إدراج رابط">🔗</button>
             </div>
-            <div id="compose-body" class="input-field rich-textarea" contenteditable="true" placeholder="اكتب رسالتك هنا..."></div>
+            <div id="compose-body" class="input-field rich-textarea" contenteditable="true" placeholder="اكتب رسالتك هنا..." oninput="saveDraft()"></div>
             
             <div class="modal-actions">
                 <div class="attachment-area">
@@ -189,7 +194,7 @@
                 </div>
 
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn-cancel" onclick="closeCompose()">إلغاء</button>
+                    <button class="btn-cancel" onclick="closeCompose()">إغلاق</button>
                     <button class="btn-send" id="btn-send-action" onclick="sendEmail()">إرسال 🚀</button>
                 </div>
             </div>
@@ -230,15 +235,8 @@
             if (activeEmail) { activeEmail.click(); }
         }
 
-        // أوامر محرر النصوص
-        function execCmd(command) {
-            document.execCommand(command, false, null);
-            document.getElementById('compose-body').focus();
-        }
-        function insertLink() {
-            let url = prompt("أدخل الرابط:");
-            if(url) { document.execCommand('createLink', false, url); }
-        }
+        function execCmd(command) { document.execCommand(command, false, null); document.getElementById('compose-body').focus(); }
+        function insertLink() { let url = prompt("أدخل الرابط:"); if(url) { document.execCommand('createLink', false, url); } }
 
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
@@ -248,13 +246,14 @@
         let currentTab = 'inbox'; 
         let selectedFile = null; 
         let selectedEmailIds = [];
+        let draftTimeout;
 
         async function checkSecurityBan() {
             try {
                 const { data, error } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
                 if (data && data.status === 'banned') {
                     localStorage.removeItem('a2z_user');
-                    alert('⛔ تم حظر حسابك من قبل الإدارة. سيتم تسجيل خروجك فوراً.');
+                    alert('⛔ تم حظر حسابك من قبل الإدارة.');
                     window.location.href = 'index.html';
                 }
             } catch (err) {}
@@ -316,7 +315,6 @@
             } catch (err) { list.innerHTML = `<div style="color:red; text-align:center; padding:20px;">حدث خطأ: ${err.message}</div>`; }
         }
 
-        // محرك البحث
         function filterEmails() {
             const query = document.getElementById('search-input').value.toLowerCase();
             filteredEmails = allEmails.filter(email => 
@@ -419,6 +417,16 @@
             
             document.getElementById('btn-delete-current').onclick = () => deleteEmail(email.id);
 
+            // زرار الطباعة 🖨️
+            document.getElementById('btn-print-current').onclick = () => {
+                const iframe = document.getElementById('reader-frame');
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            };
+
+            let finalDesign = superDecoder(email.body_text);
+
+            // زرار الرد
             document.getElementById('btn-reply-current').onclick = () => {
                 openCompose(true); 
                 let replyTo = email.sender;
@@ -429,7 +437,23 @@
                 document.getElementById('compose-body').focus();
             };
 
-            let finalDesign = superDecoder(email.body_text);
+            // زرار إعادة التوجيه ➡️
+            document.getElementById('btn-forward-current').onclick = () => {
+                openCompose(false, true); 
+                document.getElementById('compose-subject').value = `Fwd: ${email.subject || ''}`;
+                
+                let forwardHeader = `<br><br><div style="border-right: 3px solid #cbd5e1; padding-right: 15px; color: #64748b;">
+                <strong>--- رسالة محولة ---</strong><br>
+                <strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')}<br>
+                <strong>إلى:</strong> ${email.recipient}<br>
+                <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}<br><br>
+                ${finalDesign}
+                </div>`;
+                
+                document.getElementById('compose-body').innerHTML = forwardHeader;
+                document.getElementById('compose-to').focus();
+            };
+
             let isDark = document.body.classList.contains('dark-mode');
             let bgCol = isDark ? '#1e293b' : '#fff';
             let txtCol = isDark ? '#f1f5f9' : '#000';
@@ -448,23 +472,53 @@
             }
         }
 
-        function openCompose(isReply = false) { 
+        // حفظ المسودات 💾
+        function saveDraft() {
+            clearTimeout(draftTimeout);
+            draftTimeout = setTimeout(() => {
+                const to = document.getElementById('compose-to').value;
+                const subject = document.getElementById('compose-subject').value;
+                const body = document.getElementById('compose-body').innerHTML;
+                
+                if (to || subject || body) {
+                    localStorage.setItem('a2z_draft', JSON.stringify({ to, subject, body }));
+                    const badge = document.getElementById('draft-badge');
+                    badge.style.display = 'inline-block';
+                    setTimeout(() => badge.style.display = 'none', 2000);
+                }
+            }, 1000); // بيحفظ بعد ثانية من التوقف عن الكتابة
+        }
+
+        function openCompose(isReply = false, isForward = false) { 
             document.getElementById('compose-modal').style.display = 'flex';
-            document.getElementById('compose-title').innerText = isReply ? '↩️ رد على الرسالة' : '✏️ رسالة جديدة';
+            
+            if (isReply) {
+                document.getElementById('compose-title').innerText = '↩️ رد على الرسالة';
+            } else if (isForward) {
+                document.getElementById('compose-title').innerText = '➡️ إعادة توجيه';
+            } else {
+                document.getElementById('compose-title').innerText = '✏️ رسالة جديدة';
+                // استرجاع المسودة لو كانت رسالة جديدة عادية
+                const savedDraft = localStorage.getItem('a2z_draft');
+                if (savedDraft) {
+                    const draft = JSON.parse(savedDraft);
+                    document.getElementById('compose-to').value = draft.to || '';
+                    document.getElementById('compose-subject').value = draft.subject || '';
+                    document.getElementById('compose-body').innerHTML = draft.body || '';
+                } else {
+                    document.getElementById('compose-to').value = '';
+                    document.getElementById('compose-subject').value = '';
+                    document.getElementById('compose-body').innerHTML = '';
+                }
+            }
+            
             selectedFile = null;
             document.getElementById('compose-attachment').value = '';
             document.getElementById('attachment-name').innerText = '';
-            document.getElementById('compose-body').innerHTML = '';
         }
 
         function closeCompose() {
             document.getElementById('compose-modal').style.display = 'none';
-            document.getElementById('compose-to').value = '';
-            document.getElementById('compose-subject').value = '';
-            document.getElementById('compose-body').innerHTML = '';
-            selectedFile = null;
-            document.getElementById('compose-attachment').value = '';
-            document.getElementById('attachment-name').innerText = '';
         }
 
         function handleFileSelect(event) {
@@ -492,7 +546,6 @@
 
             const to = document.getElementById('compose-to').value.trim();
             const subject = document.getElementById('compose-subject').value.trim();
-            // تعديل سحب محتوى الرسالة عشان يتوافق مع المحرر الجديد
             const bodyHtml = document.getElementById('compose-body').innerHTML.trim();
             const btn = document.getElementById('btn-send-action');
 
@@ -557,6 +610,8 @@
                     }]);
 
                     alert('تم إرسال الرسالة بنجاح! ✅');
+                    // مسح المسودة بعد الإرسال الناجح
+                    localStorage.removeItem('a2z_draft');
                     closeCompose();
                     
                     if(currentTab === 'sent') fetchEmails();
