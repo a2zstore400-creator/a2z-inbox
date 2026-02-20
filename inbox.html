@@ -3,144 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A2Z Mail | صندوق الوارد</title>
+    <title>A2Z STORE | صندوق الوارد</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #00439c; --bg: #f8fafc; }
-        body { font-family: 'Cairo', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 280px; background: white; border-left: 1px solid #e2e8f0; padding: 20px; display: flex; flex-direction: column; }
+        :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
+        body { font-family: 'Cairo', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+
+        .sidebar { width: 250px; background: var(--card); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; z-index: 10; box-shadow: -2px 0 10px rgba(0,0,0,0.02); }
         .logo { font-size: 1.5rem; font-weight: 900; color: var(--primary); margin-bottom: 30px; text-align: center; }
-        .user-info { background: #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
-        .email-list { flex: 1; background: white; border-left: 1px solid #e2e8f0; overflow-y: auto; }
-        .email-item { padding: 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; }
+        .menu-item { padding: 12px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 10px; transition: 0.2s; display: flex; align-items: center; gap: 10px; color: #475569; }
+        .menu-item.active { background: #e0e7ff; color: var(--primary); }
+        .menu-item:hover:not(.active) { background: #f1f5f9; color: var(--primary); }
+        .btn-compose { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-family: 'Cairo'; cursor: pointer; margin-bottom: 20px; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,67,156,0.2); transition: 0.3s; }
+        .btn-compose:hover { transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,67,156,0.3); }
+        .btn-logout { margin-top: auto; color: #ef4444; background: #fee2e2; }
+        .btn-logout:hover:not(.active) { background: #fecaca; color: #dc2626; }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; background: var(--bg); }
+        .header { background: var(--card); padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .user-info { font-weight: bold; color: #334155; font-size: 1.1rem; }
+        .user-email { font-size: 0.9rem; color: var(--primary); background: #e0e7ff; padding: 6px 15px; border-radius: 20px; font-weight: bold; }
+
+        /* منطقة البحث */
+        .search-area { padding: 15px 20px; background: #fff; border-bottom: 1px solid var(--border); }
+        .search-input { width: 100%; padding: 10px 15px; border-radius: 10px; border: 1px solid var(--border); font-family: 'Cairo'; outline: none; transition: 0.3s; }
+        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,67,156,0.1); }
+
+        .workspace { display: flex; flex: 1; overflow: hidden; }
+        .email-list-container { width: 35%; border-left: 1px solid var(--border); background: var(--card); overflow-y: auto; }
+        .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; position: relative; }
         .email-item:hover { background: #f8fafc; }
-        .email-subject { font-weight: bold; color: #1e293b; margin-bottom: 5px; }
-        .email-from { font-size: 0.85rem; color: #64748b; }
-        .email-view { flex: 2; padding: 40px; overflow-y: auto; background: white; position: relative; }
-        .view-header { border-bottom: 2px solid #f1f5f9; margin-bottom: 20px; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
-        .view-body { line-height: 1.8; color: #334155; white-space: pre-wrap; font-size: 1.1rem; }
-        .empty-state { text-align: center; color: #94a3b8; margin-top: 100px; }
-        .btn-logout { margin-top: auto; padding: 12px; background: #fee2e2; color: #dc2626; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; }
+        .email-item.selected { background: #eff6ff; border-right: 4px solid var(--primary); }
+        .e-sender { font-weight: bold; font-size: 1rem; color: #0f172a; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .e-subject { font-size: 0.9rem; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .e-date { font-size: 0.75rem; color: #94a3b8; margin-top: 8px; }
+
+        .email-reader { flex: 1; background: var(--card); display: flex; flex-direction: column; }
+        .reader-header { padding: 25px; border-bottom: 1px solid var(--border); background: #f8fafc; display: none; }
+        .reader-subject { font-size: 1.5rem; font-weight: bold; color: #0f172a; margin-bottom: 15px; }
+        .reader-meta { font-size: 0.95rem; color: #64748b; line-height: 1.6; }
         
-        /* أزرار الإدارة والإجراءات */
-        .btn-admin { display: block; margin-top: 15px; background: #ef4444; color: white; padding: 10px; border-radius: 8px; text-decoration: none; font-weight: bold; width: 100%; box-sizing: border-box; }
-        .action-btns button { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-left: 10px; color: white; font-family: 'Cairo'; }
+        .reader-actions { float: left; display: flex; gap: 10px; }
+        .btn-action { color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; transition: 0.2s; }
         .btn-reply { background: #10b981; }
         .btn-delete { background: #ef4444; }
+
+        .iframe-container { flex: 1; width: 100%; border: none; background: white; }
+        
+        .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; }
+        .empty-state svg { width: 80px; height: 80px; margin-bottom: 20px; opacity: 0.5; color: var(--primary); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-box { background: white; width: 500px; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Cairo'; box-sizing: border-box; outline: none; }
+        .textarea-field { height: 200px; resize: vertical; }
+        .modal-actions { display: flex; justify-content: space-between; }
+        .btn-send { background: var(--primary); color: white; border: none; padding: 10px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
+        .btn-cancel { background: #f1f5f9; border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Cairo'; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <div class="logo">A2Z Mail</div>
-        <div class="user-info" id="user-display">جاري التحميل...</div>
-        <button class="btn-logout" onclick="logout()">تسجيل الخروج</button>
+        <div class="logo">🎮 A2Z Mail</div>
+        <button class="btn-compose" onclick="openCompose()">✏️ إنشاء رسالة</button>
+        <div class="menu-item active" id="tab-inbox" onclick="loadTab('inbox')">📥 البريد الوارد</div>
+        <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
+        <div class="menu-item btn-logout" onclick="logout()">🚪 تسجيل خروج</div>
     </div>
 
-    <div class="email-list" id="list-container">
-        <div class="empty-state">جاري تحميل الرسائل...</div>
+    <div class="main-content">
+        <div class="header">
+            <div class="user-info">مرحباً، <span id="display-name" style="color:var(--primary);"></span> 👋</div>
+            <div class="user-email" id="display-email"></div>
+        </div>
+
+        <div class="search-area">
+            <input type="text" class="search-input" id="search-box" placeholder="البحث في الرسائل عن طريق الاسم أو الموضوع..." oninput="filterEmails()">
+        </div>
+
+        <div class="workspace">
+            <div class="email-list-container" id="emails-list">
+                <div style="padding: 40px; text-align: center; color: #64748b;">جاري تحميل الرسائل... ⏳</div>
+            </div>
+
+            <div class="email-reader">
+                <div class="empty-state" id="empty-reader">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <h2>لم يتم تحديد رسالة</h2>
+                    <p>اختر رسالة من القائمة لقراءتها هنا</p>
+                </div>
+
+                <div class="reader-header" id="reader-header">
+                    <div class="reader-actions">
+                        <button class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
+                        <button class="btn-action btn-delete" id="btn-delete-current">حذف 🗑️</button>
+                    </div>
+                    <div class="reader-subject" id="reader-subject"></div>
+                    <div class="reader-meta" id="reader-meta"></div>
+                </div>
+                <iframe class="iframe-container" id="reader-frame" style="display:none;"></iframe>
+            </div>
+        </div>
     </div>
 
-    <div class="email-view" id="view-container">
-        <div class="empty-state">اختر رسالة لقراءتها</div>
+    <div class="modal-overlay" id="compose-modal">
+        <div class="modal-box">
+            <h3 id="compose-title">✏️ رسالة جديدة</h3>
+            <input type="email" id="compose-to" class="input-field" placeholder="إلى">
+            <input type="text" id="compose-subject" class="input-field" placeholder="الموضوع">
+            <textarea id="compose-body" class="input-field textarea-field" placeholder="اكتب رسالتك هنا..."></textarea>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeCompose()">إلغاء</button>
+                <button class="btn-send" id="btn-send-action" onclick="sendEmail()">إرسال 🚀</button>
+            </div>
+        </div>
     </div>
 
     <script>
+        const userData = JSON.parse(localStorage.getItem('a2z_user'));
+        if (!userData) { window.location.href = 'index.html'; }
+
+        document.getElementById('display-name').innerText = userData.username;
+        document.getElementById('display-email').innerText = userData.email_address;
+
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
+        let allEmails = [];
+        let currentTab = 'inbox';
+        let lastEmailCount = 0; // لمتابعة عدد الرسائل ومعرفة لو في جديد
 
-        let currentUser = JSON.parse(localStorage.getItem('a2z_user'));
+        // 🔔 نظام صوت الإشعارات
+        const notificationSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
 
-        if (!currentUser) {
-            window.location.href = 'login.html';
-        } else {
-            let userHTML = `
-                <b>أهلاً، ${currentUser.username}</b><br>
-                <span style="font-size:0.8rem; direction: ltr; display: inline-block;">${currentUser.email_address}</span>
-            `;
-            
-            // إظهار زر الإدارة للأدمن فقط
-            if (currentUser.email_address === 'admin@a2z-mail.com') {
-                userHTML += `<a href="admin.html" class="btn-admin">لوحة الإدارة ⚙️</a>`;
-            }
-            
-            document.getElementById('user-display').innerHTML = userHTML;
-            loadEmails();
-        }
-
-        async function loadEmails() {
-            const { data, error } = await myApp.from('emails')
-                .select('*')
-                .eq('recipient', currentUser.email_address)
-                .order('created_at', { ascending: false });
-
-            const list = document.getElementById('list-container');
-            if (data && data.length > 0) {
-                list.innerHTML = data.map(email => `
-                    <div class="email-item" onclick="viewEmail('${email.id}')">
-                        <div class="email-subject">${email.subject || '(بدون عنوان)'}</div>
-                        <div class="email-from">من: <span dir="ltr">${email.sender}</span></div>
-                    </div>
-                `).join('');
-            } else {
-                list.innerHTML = '<div class="empty-state">صندوق الوارد فارغ.</div>';
+        async function checkSecurityBan() {
+            const { data } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
+            if (data && data.status === 'banned') {
+                localStorage.removeItem('a2z_user');
+                alert('⛔ تم حظر حسابك.');
+                window.location.href = 'index.html';
             }
         }
 
-        async function viewEmail(id) {
-            const { data } = await myApp.from('emails').select('*').eq('id', id).single();
-            if (data) {
-                const view = document.getElementById('view-container');
-                
-                // تنظيف الرسالة
-                let body = data.body || '';
-                if (body.includes("\r\n\r\n")) {
-                    body = body.split("\r\n\r\n").slice(1).join("\r\n\r\n");
+        function superDecoder(raw) {
+            if (!raw) return "";
+            if (!raw.includes('Content-Type:') && (raw.includes('<div') || raw.includes('<html'))) return raw;
+            const fixArabic = (str) => { try { return decodeURIComponent(escape(str)); } catch(e) { return str; } };
+            try {
+                let parts = raw.split(/--_?[A-Za-z0-9=_-]+/);
+                for (let part of parts) {
+                    let lowerPart = part.toLowerCase();
+                    if (lowerPart.includes('content-type: text/html')) {
+                        let splitContent = part.split(/\r?\n\r?\n/);
+                        let bodyText = splitContent.length > 1 ? splitContent.slice(1).join('\n\n').trim() : part;
+                        if (lowerPart.includes('base64')) {
+                            try { return fixArabic(atob(bodyText.replace(/[\s\r\n]/g, ''))); } catch(e) { try { return atob(bodyText.replace(/[\s\r\n]/g, '')); } catch(e){} }
+                        } else if (lowerPart.includes('quoted-printable')) {
+                            return fixArabic(bodyText.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, ''));
+                        } else { return fixArabic(bodyText); }
+                    }
                 }
+                return `<div style="padding:20px; direction:ltr; text-align:left; font-family:monospace; white-space:pre-wrap; background:#f8fafc;">${raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+            } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
+        }
 
-                view.innerHTML = `
-                    <div class="view-header">
-                        <div>
-                            <h2>${data.subject || '(بدون عنوان)'}</h2>
-                            <div style="color:#64748b">من: <span dir="ltr">${data.sender}</span></div>
-                            <div style="color:#64748b">إلى: <span dir="ltr">${data.recipient}</span></div>
-                            <div style="font-size:0.8rem; color:#94a3b8; margin-top:5px;">التاريخ: ${new Date(data.created_at).toLocaleString('ar-EG')}</div>
-                        </div>
-                        <div class="action-btns">
-                            <button class="btn-reply" onclick="replyEmail('${data.sender}')">رد ↩️</button>
-                            <button class="btn-delete" onclick="deleteEmail('${data.id}')">حذف 🗑️</button>
-                        </div>
-                    </div>
-                    <div class="view-body">${body}</div>
-                `;
+        function loadTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-inbox').classList.remove('active');
+            document.getElementById('tab-sent').classList.remove('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById('search-box').value = ''; // تصفير البحث عند التنقل
+            fetchEmails();
+        }
+
+        // 🔍 دالة البحث الذكي
+        function filterEmails() {
+            const term = document.getElementById('search-box').value.toLowerCase();
+            const list = document.getElementById('emails-list');
+            const filtered = allEmails.filter(e => 
+                (e.sender && e.sender.toLowerCase().includes(term)) || 
+                (e.subject && e.subject.toLowerCase().includes(term)) ||
+                (e.recipient && e.recipient.toLowerCase().includes(term))
+            );
+            renderEmailList(filtered);
+        }
+
+        async function fetchEmails(isSilent = false) {
+            try {
+                let query = myApp.from('emails').select('*').order('created_at', { ascending: false });
+                if (currentTab === 'inbox') { query = query.eq('recipient', userData.email_address); } 
+                else { query = query.ilike('sender', `%${userData.email_address}%`); }
+
+                const { data, error } = await query;
+                if (error) throw error;
+
+                // 🔔 فحص لو في رسالة جديدة وصلت (في وضع الوارد فقط)
+                if (isSilent && currentTab === 'inbox' && data.length > lastEmailCount && lastEmailCount !== 0) {
+                    notificationSound.play();
+                }
+                
+                allEmails = data;
+                lastEmailCount = data.length;
+                
+                // لو مش تحديث صامت (يعني لود أول مرة أو تنقل)، ارسم القائمة
+                if (!isSilent || document.getElementById('search-box').value === '') {
+                    renderEmailList(allEmails);
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function renderEmailList(data) {
+            const list = document.getElementById('emails-list');
+            if (data.length === 0) {
+                list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>لا توجد رسائل.</div>";
+                return;
             }
+            list.innerHTML = data.map((email, index) => `
+                <div class="email-item" onclick="openEmail(${index}, this)" id="item-${email.id}">
+                    <div class="e-sender">${currentTab === 'inbox' ? email.sender.split('<')[0].replace(/"/g, '') : 'إلى: ' + email.recipient}</div>
+                    <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
+                    <div class="e-date">${new Date(email.created_at).toLocaleString('ar-EG')}</div>
+                </div>
+            `).join('');
+        }
+
+        function openEmail(index, element) {
+            const email = allEmails[index];
+            document.querySelectorAll('.email-item').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('empty-reader').style.display = 'none';
+            document.getElementById('reader-header').style.display = 'block';
+            document.getElementById('reader-frame').style.display = 'block';
+            document.getElementById('reader-subject').innerText = email.subject || 'بدون عنوان';
+            document.getElementById('reader-meta').innerHTML = `<strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> <strong>إلى:</strong> ${email.recipient}`;
+            
+            document.getElementById('btn-delete-current').onclick = () => deleteEmail(email.id);
+            document.getElementById('btn-reply-current').onclick = () => {
+                openCompose(true);
+                let replyTo = email.sender.includes('<') ? email.sender.split('<')[1].split('>')[0] : email.sender;
+                document.getElementById('compose-to').value = replyTo;
+                document.getElementById('compose-subject').value = `رد: ${email.subject || ''}`;
+            };
+
+            let finalDesign = superDecoder(email.body_text);
+            let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:25px;font-family:sans-serif;}</style></head><body>${finalDesign}</body></html>`;
+            document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
         }
 
         async function deleteEmail(id) {
-            if(confirm('متأكد إنك عاوز تحذف الرسالة دي؟')) {
-                const { error } = await myApp.from('emails').delete().eq('id', id);
-                if(!error) {
-                    alert('تم الحذف بنجاح');
-                    document.getElementById('view-container').innerHTML = '<div class="empty-state">اختر رسالة لقراءتها</div>';
-                    loadEmails();
-                } else {
-                    alert('فيه مشكلة في الحذف!');
-                }
+            if(confirm('حذف؟')) {
+                await myApp.from('emails').delete().eq('id', id);
+                fetchEmails();
+                document.getElementById('empty-reader').style.display = 'flex';
+                document.getElementById('reader-header').style.display = 'none';
+                document.getElementById('reader-frame').style.display = 'none';
             }
         }
 
-        function replyEmail(sender) {
-            alert('جاري التجهيز للرد على: ' + sender);
+        function openCompose(isReply = false) { 
+            document.getElementById('compose-modal').style.display = 'flex';
+            document.getElementById('compose-title').innerText = isReply ? '↩️ رد' : '✏️ رسالة جديدة';
+        }
+        function closeCompose() { document.getElementById('compose-modal').style.display = 'none'; }
+
+        async function sendEmail() {
+            const to = document.getElementById('compose-to').value;
+            const sub = document.getElementById('compose-subject').value;
+            const body = document.getElementById('compose-body').value;
+            const btn = document.getElementById('btn-send-action');
+            btn.innerText = 'جاري الإرسال...';
+            btn.disabled = true;
+
+            const WORKER_URL = "https://late-butterfly-bd1a.a2z-store400.workers.dev";
+            const html = `<div dir="rtl" style="text-align:right;">${body.replace(/\n/g, '<br>')}</div>`;
+
+            try {
+                const res = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from: `A2Z Mail <${userData.email_address}>`, to, subject: sub, html })
+                });
+                const result = await res.json();
+                if (result.id) {
+                    await myApp.from('emails').insert([{ sender: `A2Z Mail <${userData.email_address}>`, recipient: to, subject: sub, body_text: html }]);
+                    alert('تم الإرسال! ✅');
+                    closeCompose();
+                    if(currentTab === 'sent') fetchEmails();
+                }
+            } catch (e) { alert('خطأ!'); }
+            finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
-        function logout() {
-            localStorage.removeItem('a2z_user');
-            window.location.href = 'login.html';
-        }
+        function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
 
-        setInterval(loadEmails, 30000); // تحديث الصندوق كل 30 ثانية
+        // 🔄 التحديث التلقائي كل 10 ثواني (صامت) وفحص الحظر
+        window.onload = () => {
+            fetchEmails();
+            setInterval(() => fetchEmails(true), 10000); 
+            setInterval(checkSecurityBan, 30000);
+        };
     </script>
 </body>
 </html>
