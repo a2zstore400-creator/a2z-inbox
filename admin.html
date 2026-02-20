@@ -66,12 +66,24 @@
                     </tr>
                 </thead>
                 <tbody id="users-body">
-                    </tbody>
+                    <tr><td colspan="4" style="text-align:center">جاري تحميل البيانات...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
     <script>
+        // 🛡️ حماية الصفحة (البواب الإلكتروني):
+        // بنسحب بيانات الشخص اللي فاتح المتصفح دلوقتي
+        const userData = JSON.parse(localStorage.getItem('a2z_user'));
+        
+        // لو مفيش بيانات (مش مسجل دخول) أو إيميله مش إيميل الإدارة.. اطرده فوراً!
+        if (!userData || userData.email_address !== 'admin@a2z-mail.com') {
+            alert('⛔ دخول غير مصرح به! هذه الصفحة مخصصة للإدارة فقط ويتم تسجيل محاولة الدخول.');
+            window.location.replace('login.html'); // بيحوله لصفحة الدخول وميقدرش يرجع باك
+        }
+
+        // لو طلع الأدمن فعلاً، السيستم هيكمل ويفتحله اللوحة عادي
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
@@ -89,25 +101,38 @@
             // تحميل قائمة المستخدمين
             const { data: users } = await myApp.from('a2z_users').select('*').order('created_at', { ascending: false });
             const body = document.getElementById('users-body');
-            body.innerHTML = users.map(u => `
-                <tr>
-                    <td style="font-weight:bold;">${u.username}</td>
-                    <td>${u.email_address}</td>
-                    <td><span class="status ${u.status === 'banned' ? 'banned' : 'active'}">${u.status || 'نشط'}</span></td>
-                    <td>
-                        ${u.status === 'banned' 
-                            ? `<button class="btn btn-unban" onclick="updateStatus('${u.id}', 'active')">إلغاء الحظر</button>` 
-                            : `<button class="btn btn-ban" onclick="updateStatus('${u.id}', 'banned')">حظر</button>`}
-                    </td>
-                </tr>
-            `).join('');
+            
+            if (users && users.length > 0) {
+                body.innerHTML = users.map(u => `
+                    <tr>
+                        <td style="font-weight:bold;">${u.username}</td>
+                        <td dir="ltr" style="text-align:right;">${u.email_address}</td>
+                        <td><span class="status ${u.status === 'banned' ? 'banned' : 'active'}">${u.status || 'نشط'}</span></td>
+                        <td>
+                            ${u.status === 'banned' 
+                                ? `<button class="btn btn-unban" onclick="updateStatus('${u.id}', 'active')">إلغاء الحظر</button>` 
+                                : `<button class="btn btn-ban" onclick="updateStatus('${u.id}', 'banned')">حظر</button>`}
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                body.innerHTML = '<tr><td colspan="4" style="text-align:center">لا يوجد مستخدمين حتى الآن</td></tr>';
+            }
         }
 
         async function updateStatus(uid, newStatus) {
+            // أمان إضافي وقت الحظر: نتأكد للمرة التانية إن اللي بيضغط هو الأدمن
+            if (userData.email_address !== 'admin@a2z-mail.com') {
+                alert('غير مصرح لك بهذا الإجراء');
+                return;
+            }
+
             const { error } = await myApp.from('a2z_users').update({ status: newStatus }).eq('id', uid);
             if(!error) {
                 alert('تم التحديث بنجاح! ✅');
                 loadDashboard();
+            } else {
+                alert('حدث خطأ أثناء التحديث');
             }
         }
 
