@@ -17,7 +17,6 @@
         .stat-card h3 { margin: 0; color: #64748b; font-size: 1rem; }
         .stat-card .value { font-size: 2.5rem; font-weight: 900; color: var(--primary); margin: 10px 0; }
 
-        /* قسم الإرسال الجماعي */
         .broadcast-section { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 40px; border-right: 5px solid #00439c; }
         .broadcast-title { margin-top: 0; color: #0f172a; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
         .bc-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; }
@@ -63,13 +62,23 @@
             </div>
         </div>
 
+        <div class="broadcast-section" style="border-right-color: #f59e0b;">
+            <h3 class="broadcast-title">⚡ توليد حسابات متعددة (سريعة)</h3>
+            <p style="color: #64748b; font-size: 0.9rem; margin-top: -10px; margin-bottom: 15px;">حدد اسم افتتاحي، عدد الحسابات المطلوبة، وكلمة مرور موحدة، وسيتم إنشائها فوراً.</p>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <input type="text" id="bulk-prefix" class="bc-input" placeholder="بداية الاسم (مثال: vip)" style="margin-bottom:0; flex: 2;">
+                <input type="number" id="bulk-count" class="bc-input" placeholder="العدد (مثال: 10)" style="margin-bottom:0; flex: 1;">
+                <input type="text" id="bulk-pass" class="bc-input" placeholder="الباسورد الموحد ليهم" style="margin-bottom:0; flex: 2;">
+            </div>
+            
+            <button class="btn btn-broadcast" style="background: #f59e0b;" onclick="generateBulkUsers()" id="btn-bulk-gen">توليد الحسابات الآن ⚡</button>
+        </div>
+
         <div class="broadcast-section">
             <h3 class="broadcast-title">📢 تنبيهات النظام لجميع المستخدمين</h3>
-            <p style="color: #64748b; font-size: 0.9rem; margin-top: -10px; margin-bottom: 15px;">استخدم هذا القسم لإرسال تحديثات النظام، التنبيهات الأمنية، أو الميزات الجديدة في البريد لجميع المشتركين.</p>
-            
             <input type="text" id="bc-subject" class="bc-input" placeholder="عنوان الرسالة (مثال: تحديث أمني جديد في A2Z Mail)">
             <textarea id="bc-body" class="bc-input bc-textarea" placeholder="اكتب تفاصيل التحديث أو التنبيه الإداري هنا..."></textarea>
-            
             <button class="btn btn-broadcast" onclick="sendBroadcast()" id="bc-btn">إرسال التنبيه للجميع 🚀</button>
         </div>
 
@@ -91,7 +100,6 @@
     </div>
 
     <script>
-        // 🛡️ حماية الصفحة
         const userData = JSON.parse(localStorage.getItem('a2z_user'));
         if (!userData || userData.email_address !== 'admin@a2z-mail.com') {
             alert('⛔ دخول غير مصرح به!');
@@ -138,7 +146,63 @@
             if(!error) { alert('تم التحديث بنجاح! ✅'); loadDashboard(); }
         }
 
-        // 📢 دالة الإرسال الإداري (بدون طابع إعلاني)
+        // ⚡ الدالة الجديدة لتوليد الحسابات بالجملة
+        async function generateBulkUsers() {
+            const prefix = document.getElementById('bulk-prefix').value.trim();
+            const count = parseInt(document.getElementById('bulk-count').value);
+            const pass = document.getElementById('bulk-pass').value.trim();
+            const btn = document.getElementById('btn-bulk-gen');
+
+            if(!prefix || !count || !pass || count <= 0) {
+                return alert('يرجى تعبئة جميع الحقول الثلاثة بشكل صحيح!');
+            }
+
+            // التأكد إن الاسم مفهوش مسافات عشان الإيميل ميبوظش
+            const safePrefix = prefix.replace(/\\s+/g, '').toLowerCase();
+
+            if(!confirm(`هل أنت متأكد من إنشاء ${count} حساب تبدأ بـ ${safePrefix}؟`)) return;
+
+            btn.innerText = 'جاري التوليد... ⏳';
+            btn.disabled = true;
+
+            let newUsers = [];
+            for(let i = 1; i <= count; i++) {
+                let username = `${safePrefix}${i}`;
+                let email = `${username}@a2z-mail.com`;
+                
+                newUsers.push({
+                    username: username,
+                    email_address: email,
+                    password: pass,
+                    status: 'active'
+                });
+            }
+
+            try {
+                // إرسال المصفوفة كلها للسيرفر دفعة واحدة
+                const { error } = await myApp.from('a2z_users').insert(newUsers);
+                
+                if(!error) {
+                    alert(`عاش يا مدير! تم إنشاء ${count} حساب بنجاح. 🎉`);
+                    document.getElementById('bulk-prefix').value = '';
+                    document.getElementById('bulk-count').value = '';
+                    document.getElementById('bulk-pass').value = '';
+                    loadDashboard(); // نحدث الجدول والعدادات
+                } else {
+                    if(error.code === '23505') {
+                        alert('⚠️ خطأ: بعض هذه الحسابات موجودة مسبقاً! جرب تستخدم بداية اسم (Prefix) مختلفة.');
+                    } else {
+                        alert('حدث خطأ أثناء الإنشاء: ' + error.message);
+                    }
+                }
+            } catch (err) {
+                alert('خطأ غير متوقع!');
+            } finally {
+                btn.innerText = 'توليد الحسابات الآن ⚡';
+                btn.disabled = false;
+            }
+        }
+
         async function sendBroadcast() {
             const subject = document.getElementById('bc-subject').value.trim();
             const body = document.getElementById('bc-body').value.trim();
@@ -152,17 +216,13 @@
 
             try {
                 const { data: users } = await myApp.from('a2z_users').select('email_address').eq('status', 'active');
-                
-                if(!users || users.length === 0) {
-                    alert('لا يوجد مستخدمين نشطين حالياً!');
-                    return;
-                }
+                if(!users || users.length === 0) { alert('لا يوجد مستخدمين نشطين حالياً!'); return; }
 
                 const htmlFormat = `
                 <div style="font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; font-size: 16px; color: #1e293b; padding: 25px; background: #f8fafc; border: 2px solid #00439c; border-radius: 15px;">
                     <h2 style="color: #00439c; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">📢 تنبيه من إدارة A2Z Mail</h2>
                     <div style="margin-top: 20px; line-height: 1.8;">
-                        ${body.replace(/\n/g, '<br>')}
+                        ${body.replace(/\\n/g, '<br>')}
                     </div>
                     <div style="margin-top: 30px; font-size: 0.85rem; color: #64748b; text-align: center;">
                         تم إرسال هذه الرسالة من نظام A2Z Mail ولا تتطلب الرد.
@@ -173,7 +233,8 @@
                     sender: `نظام A2Z Mail <admin@a2z-mail.com>`,
                     recipient: u.email_address,
                     subject: `تنبيه إداري: ${subject}`,
-                    body_text: htmlFormat
+                    body_text: htmlFormat,
+                    is_trashed: false
                 }));
 
                 const { error } = await myApp.from('emails').insert(emailsToInsert);
@@ -183,12 +244,8 @@
                     document.getElementById('bc-subject').value = '';
                     document.getElementById('bc-body').value = '';
                     loadDashboard();
-                } else {
-                    alert('حدث خطأ أثناء الإرسال.');
-                }
-            } catch (err) {
-                alert('خطأ غير متوقع!');
-            } finally {
+                } else { alert('حدث خطأ أثناء الإرسال.'); }
+            } catch (err) { alert('خطأ غير متوقع!'); } finally {
                 btn.innerText = 'إرسال التنبيه للجميع 🚀';
                 btn.disabled = false;
             }
