@@ -37,8 +37,8 @@
         body.dark-mode .user-email { background: #1e3a8a; color: #93c5fd; }
 
         .workspace { display: flex; flex: 1; overflow: hidden; }
-        .email-list-container { width: 35%; border-left: 1px solid var(--border); background: var(--card); overflow-y: auto; transition: background 0.3s, border-color 0.3s; }
-        .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+        .email-list-container { width: 35%; border-left: 1px solid var(--border); background: var(--card); overflow-y: auto; transition: background 0.3s, border-color 0.3s; position: relative; }
+        .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; display: flex; align-items: flex-start; }
         .email-item:hover { background: #f8fafc; }
         .email-item.selected { background: #eff6ff; border-right: 4px solid var(--primary); }
         .e-sender { font-weight: bold; font-size: 1rem; color: var(--text); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -79,7 +79,6 @@
         
         .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
         
-        /* أزرار المرفقات */
         .attachment-area { display: flex; align-items: center; gap: 10px; }
         .btn-attach { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; transition: transform 0.2s; }
         .btn-attach:hover { transform: scale(1.1); }
@@ -92,6 +91,11 @@
         
         .btn-send { background: var(--primary); color: white; border: none; padding: 10px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
         .btn-send:hover { opacity: 0.9; }
+
+        /* ستايل شريط التحديد المتعدد */
+        .bulk-actions-bar { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--card); position: sticky; top: 0; z-index: 5; transition: background 0.3s; }
+        body.dark-mode .bulk-actions-bar { background: #1e293b; }
+        .chk-email { cursor: pointer; transform: scale(1.3); margin-left: 15px; margin-top: 5px; accent-color: var(--primary); }
     </style>
 </head>
 <body>
@@ -199,7 +203,10 @@
         const myApp = supabase.createClient(S_URL, S_KEY);
         let allEmails = [];
         let currentTab = 'inbox'; 
-        let selectedFile = null; // متغير لحفظ الملف المرفوع
+        let selectedFile = null; 
+        
+        // 🌟 مصفوفة لحفظ معرفات الرسايل اللي اليوزر بيعلم عليها
+        let selectedEmailIds = [];
 
         async function checkSecurityBan() {
             try {
@@ -238,6 +245,7 @@
 
         function loadTab(tab) {
             currentTab = tab;
+            selectedEmailIds = []; // تصفير التحديد لما نغير التاب
             document.getElementById('tab-inbox').classList.remove('active');
             document.getElementById('tab-sent').classList.remove('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
@@ -250,6 +258,8 @@
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
             list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري تحميل الرسائل... ⏳</div>";
+            selectedEmailIds = []; // تصفير المصفوفة
+            
             try {
                 let query = myApp.from('emails').select('*').order('created_at', { ascending: false });
                 if (currentTab === 'inbox') { query = query.eq('recipient', userData.email_address); } 
@@ -266,19 +276,91 @@
                     return; 
                 }
 
-                list.innerHTML = data.map((email, index) => {
+                // 🌟 الشريط العلوي للتحديد المتعدد
+                let headerHTML = `
+                <div class="bulk-actions-bar">
+                    <div style="display:flex; align-items:center;">
+                        <input type="checkbox" id="chk-all" onchange="toggleAllCheckboxes(event)" class="chk-email" style="margin-left:8px; margin-top:0;">
+                        <label for="chk-all" style="cursor:pointer; font-weight:bold; font-size:0.9rem; color:#64748b;">تحديد الكل</label>
+                    </div>
+                    <button class="btn-action btn-delete" id="btn-bulk-delete" style="display:none; padding: 6px 15px; font-size: 0.85rem;" onclick="bulkDeleteEmails()">حذف المحدد 🗑️</button>
+                </div>`;
+
+                let itemsHTML = data.map((email, index) => {
                     let displayPerson = currentTab === 'inbox' ? email.sender.split('<')[0].replace(/"/g, '') : `إلى: ${email.recipient}`;
-                    // هنضيف علامة مشبك لو الرسالة فيها مرفق (بناءً على وجود رابط السوبابيز)
                     let hasAttachment = email.body_text.includes('supabase.co/storage') ? ' 📎' : '';
 
                     return `
                     <div class="email-item" onclick="openEmail(${index}, this)" id="item-${email.id}">
-                        <div class="e-sender">${displayPerson}${hasAttachment}</div>
-                        <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
-                        <div class="e-date">${new Date(email.created_at).toLocaleString('ar-EG')}</div>
+                        <input type="checkbox" class="chk-email single-chk" value="${email.id}" onclick="toggleSingleCheck(event, '${email.id}')">
+                        <div style="flex:1; overflow:hidden;">
+                            <div class="e-sender">${displayPerson}${hasAttachment}</div>
+                            <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
+                            <div class="e-date">${new Date(email.created_at).toLocaleString('ar-EG')}</div>
+                        </div>
                     </div>`;
                 }).join('');
+
+                list.innerHTML = headerHTML + itemsHTML;
             } catch (err) { list.innerHTML = `<div style="color:red; text-align:center; padding:20px;">حدث خطأ: ${err.message}</div>`; }
+        }
+
+        // 🌟 دوال التحديد المتعدد الجديدة
+        function toggleSingleCheck(event, id) {
+            event.stopPropagation(); // عشان الرسالة متتفتحش لما نعلم ع المربع
+            if(event.target.checked) {
+                selectedEmailIds.push(id);
+            } else {
+                selectedEmailIds = selectedEmailIds.filter(itemId => itemId !== id);
+                document.getElementById('chk-all').checked = false;
+            }
+            updateBulkDeleteButton();
+        }
+
+        function toggleAllCheckboxes(event) {
+            const isChecked = event.target.checked;
+            selectedEmailIds = [];
+            const checkboxes = document.querySelectorAll('.single-chk');
+            
+            checkboxes.forEach(chk => {
+                chk.checked = isChecked;
+                if(isChecked) selectedEmailIds.push(chk.value);
+            });
+            updateBulkDeleteButton();
+        }
+
+        function updateBulkDeleteButton() {
+            const btn = document.getElementById('btn-bulk-delete');
+            if(selectedEmailIds.length > 0) {
+                btn.style.display = 'block';
+                btn.innerText = `حذف (${selectedEmailIds.length}) 🗑️`;
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        async function bulkDeleteEmails() {
+            if(selectedEmailIds.length === 0) return;
+            if(confirm(`هل أنت متأكد من حذف ${selectedEmailIds.length} رسالة؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+                
+                const btn = document.getElementById('btn-bulk-delete');
+                btn.innerText = 'جاري الحذف...';
+                btn.disabled = true;
+
+                // كود سحري من Supabase لحذف كذا صف في ضربة واحدة
+                const { error } = await myApp.from('emails').delete().in('id', selectedEmailIds);
+                
+                if(!error) {
+                    fetchEmails(); // تحديث القائمة بعد الحذف
+                    document.getElementById('empty-reader').style.display = 'flex';
+                    document.getElementById('reader-header').style.display = 'none';
+                    document.getElementById('reader-frame').style.display = 'none';
+                } else {
+                    alert('حصل خطأ أثناء الحذف الجماعي!');
+                    btn.innerText = `حذف (${selectedEmailIds.length}) 🗑️`;
+                    btn.disabled = false;
+                }
+            }
         }
 
         function openEmail(index, element) {
@@ -315,7 +397,7 @@
         async function deleteEmail(id) {
             if(confirm('هل أنت متأكد من الحذف؟')) {
                 await myApp.from('emails').delete().eq('id', id);
-                document.getElementById(`item-${id}`).remove();
+                fetchEmails(); // نحدث القائمة عشان لو في رسايل تانية
                 document.getElementById('empty-reader').style.display = 'flex';
                 document.getElementById('reader-header').style.display = 'none';
                 document.getElementById('reader-frame').style.display = 'none';
@@ -325,7 +407,6 @@
         function openCompose(isReply = false) { 
             document.getElementById('compose-modal').style.display = 'flex';
             document.getElementById('compose-title').innerText = isReply ? '↩️ رد على الرسالة' : '✏️ رسالة جديدة';
-            // تفريغ المرفقات عند الفتح
             selectedFile = null;
             document.getElementById('compose-attachment').value = '';
             document.getElementById('attachment-name').innerText = '';
@@ -341,11 +422,9 @@
             document.getElementById('attachment-name').innerText = '';
         }
 
-        // دالة اختيار الملف
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (file) {
-                // حد أقصى للملف 5 ميجا بايت
                 if (file.size > 5 * 1024 * 1024) {
                     alert('حجم الملف كبير جداً! الحد الأقصى 5 ميجابايت.');
                     event.target.value = '';
@@ -378,11 +457,9 @@
 
             let attachmentHtml = '';
 
-            // لو فيه ملف، نرفعه الأول لـ Supabase
             if (selectedFile) {
                 btn.innerText = 'جاري رفع المرفق... 🚀';
                 const fileExt = selectedFile.name.split('.').pop();
-                // بنعمل اسم عشوائي عشان الملفات متدخلش في بعض
                 const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
                 
                 const { data: uploadData, error: uploadError } = await myApp.storage
@@ -396,11 +473,9 @@
                     return;
                 }
                 
-                // نجيب الرابط العام للملف
                 const { data: publicUrlData } = myApp.storage.from('attachments').getPublicUrl(fileName);
                 const fileUrl = publicUrlData.publicUrl;
                 
-                // لو صورة نعرضها مباشرة، لو ملف نحطله زرار تحميل
                 if (selectedFile.type.startsWith('image/')) {
                     attachmentHtml = `<br><br><div style="text-align:center;"><img src="${fileUrl}" style="max-width:100%; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>`;
                 } else {
