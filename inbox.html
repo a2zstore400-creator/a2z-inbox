@@ -74,6 +74,7 @@
         .btn-forward { background: #3b82f6; } .btn-forward:hover { background: #2563eb; }
         .btn-print { background: #64748b; } .btn-print:hover { background: #475569; }
         .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; }
+        .btn-restore { background: #10b981; } .btn-restore:hover { background: #059669; }
 
         .iframe-container { flex: 1; width: 100%; border: none; background: transparent; }
         
@@ -124,6 +125,8 @@
         <div class="menu-item active" id="tab-inbox" onclick="loadTab('inbox')">📥 البريد الوارد</div>
         <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
         
+        <div class="menu-item" id="tab-trash" onclick="loadTab('trash')">🗑️ سلة المهملات</div>
+        
         <div class="menu-item" onclick="window.location.href='profile.html'">⚙️ إعدادات الحساب</div>
         <div class="menu-item" id="btn-theme" onclick="toggleTheme()" style="margin-top: 20px;">🌙 الوضع الليلي</div>
         <div class="menu-item btn-logout" onclick="logout()">🚪 تسجيل خروج</div>
@@ -154,13 +157,19 @@
                 </div>
 
                 <div class="reader-header" id="reader-header">
-                    <div class="reader-actions">
+                    <div class="reader-actions" id="normal-actions">
                         <button class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
                         <button class="btn-action btn-forward" id="btn-forward-current">إعادة توجيه ➡️</button>
                         <button class="btn-action btn-print" id="btn-print-current">طباعة 🖨️</button>
-                        <button class="btn-action btn-delete" id="btn-delete-current">حذف 🗑️</button>
+                        <button class="btn-action btn-delete" id="btn-delete-current">نقل للمهملات 🗑️</button>
                     </div>
-                    <div class="reader-subject" id="reader-subject"></div>
+                    
+                    <div class="reader-actions" id="trash-actions" style="display:none;">
+                        <button class="btn-action btn-restore" id="btn-restore-current">استرجاع ♻️</button>
+                        <button class="btn-action btn-delete" id="btn-hard-delete-current">حذف نهائي 💥</button>
+                    </div>
+
+                    <div class="reader-subject" id="reader-subject" style="margin-top: 15px; clear: both;"></div>
                     <div class="reader-meta" id="reader-meta"></div>
                 </div>
                 <iframe class="iframe-container" id="reader-frame" style="display:none;" name="reader-frame"></iframe>
@@ -289,6 +298,7 @@
             document.getElementById('search-input').value = '';
             document.getElementById('tab-inbox').classList.remove('active');
             document.getElementById('tab-sent').classList.remove('active');
+            document.getElementById('tab-trash').classList.remove('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
             document.getElementById('empty-reader').style.display = 'flex';
             document.getElementById('reader-header').style.display = 'none';
@@ -303,8 +313,16 @@
             
             try {
                 let query = myApp.from('emails').select('*').order('created_at', { ascending: false });
-                if (currentTab === 'inbox') { query = query.eq('recipient', userData.email_address); } 
-                else { query = query.ilike('sender', `%${userData.email_address}%`); }
+                
+                // التعديل: فلترة المهملات
+                if (currentTab === 'inbox') { 
+                    query = query.eq('recipient', userData.email_address).eq('is_trashed', false); 
+                } else if (currentTab === 'sent') { 
+                    query = query.ilike('sender', `%${userData.email_address}%`).eq('is_trashed', false); 
+                } else if (currentTab === 'trash') {
+                    // سلة المهملات بتجيب الرسايل اللي مبعوتة ليك أو منك وممسوحة
+                    query = query.or(`recipient.eq.${userData.email_address},sender.ilike.%${userData.email_address}%`).eq('is_trashed', true);
+                }
 
                 const { data, error } = await query;
                 if (error) throw error;
@@ -328,9 +346,25 @@
             const list = document.getElementById('emails-list');
             
             if (filteredEmails.length === 0) { 
-                let text = document.getElementById('search-input').value ? 'لا توجد نتائج للبحث.' : (currentTab === 'inbox' ? 'صندوق الوارد فارغ.' : 'لم تقم بإرسال أي رسائل.');
+                let text = '';
+                if(document.getElementById('search-input').value) text = 'لا توجد نتائج للبحث.';
+                else if(currentTab === 'inbox') text = 'صندوق الوارد فارغ.';
+                else if(currentTab === 'sent') text = 'لم تقم بإرسال أي رسائل.';
+                else if(currentTab === 'trash') text = 'سلة المهملات فارغة.';
+
                 list.innerHTML = `<div style='text-align:center; padding:40px; color:#64748b; font-weight:bold; font-size:1.1rem;'><div style='font-size:3rem; margin-bottom:10px;'>📭</div>${text}</div>`; 
                 return; 
+            }
+
+            // أزرار الحذف الجماعي بتختلف حسب التاب
+            let bulkButtons = '';
+            if(currentTab === 'trash') {
+                bulkButtons = `
+                    <button class="btn-action btn-restore" id="btn-bulk-restore" style="display:none; padding: 6px 15px; font-size: 0.85rem;" onclick="bulkRestoreEmails()">استرجاع ♻️</button>
+                    <button class="btn-action btn-delete" id="btn-bulk-delete" style="display:none; padding: 6px 15px; font-size: 0.85rem;" onclick="bulkHardDeleteEmails()">حذف نهائي 💥</button>
+                `;
+            } else {
+                bulkButtons = `<button class="btn-action btn-delete" id="btn-bulk-delete" style="display:none; padding: 6px 15px; font-size: 0.85rem;" onclick="bulkSoftDeleteEmails()">نقل للمهملات 🗑️</button>`;
             }
 
             let headerHTML = `
@@ -339,11 +373,15 @@
                     <input type="checkbox" id="chk-all" onchange="toggleAllCheckboxes(event)" class="chk-email" style="margin-left:8px; margin-top:0;">
                     <label for="chk-all" style="cursor:pointer; font-weight:bold; font-size:0.9rem; color:#64748b;">تحديد الكل</label>
                 </div>
-                <button class="btn-action btn-delete" id="btn-bulk-delete" style="display:none; padding: 6px 15px; font-size: 0.85rem;" onclick="bulkDeleteEmails()">حذف المحدد 🗑️</button>
+                <div style="display:flex; gap:10px;">
+                    ${bulkButtons}
+                </div>
             </div>`;
 
             let itemsHTML = filteredEmails.map((email, index) => {
                 let displayPerson = currentTab === 'inbox' ? email.sender.split('<')[0].replace(/"/g, '') : `إلى: ${email.recipient}`;
+                if(currentTab === 'trash') displayPerson = email.sender.split('<')[0].replace(/"/g, ''); // في المهملات نعرض المرسل دايماً للتبسيط
+                
                 let hasAttachment = email.body_text.includes('supabase.co/storage') ? ' 📎' : '';
                 let isChecked = selectedEmailIds.includes(email.id) ? 'checked' : '';
 
@@ -378,16 +416,37 @@
         }
 
         function updateBulkDeleteButton() {
-            const btn = document.getElementById('btn-bulk-delete');
-            if(btn) {
-                if(selectedEmailIds.length > 0) { btn.style.display = 'block'; btn.innerText = `حذف (${selectedEmailIds.length}) 🗑️`; } 
-                else { btn.style.display = 'none'; }
+            const btnDelete = document.getElementById('btn-bulk-delete');
+            const btnRestore = document.getElementById('btn-bulk-restore');
+            
+            if(selectedEmailIds.length > 0) { 
+                if(btnDelete) { btnDelete.style.display = 'block'; btnDelete.innerText = (currentTab === 'trash' ? 'حذف نهائي 💥' : 'نقل للمهملات 🗑️') + ` (${selectedEmailIds.length})`; }
+                if(btnRestore) { btnRestore.style.display = 'block'; btnRestore.innerText = `استرجاع ♻️ (${selectedEmailIds.length})`; }
+            } else { 
+                if(btnDelete) btnDelete.style.display = 'none'; 
+                if(btnRestore) btnRestore.style.display = 'none'; 
             }
         }
 
-        async function bulkDeleteEmails() {
+        // الحذف المؤقت (نقل للمهملات) للمجموعات
+        async function bulkSoftDeleteEmails() {
             if(selectedEmailIds.length === 0) return;
-            if(confirm(`هل أنت متأكد من حذف ${selectedEmailIds.length} رسالة؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+            const btn = document.getElementById('btn-bulk-delete');
+            btn.innerText = 'جاري النقل...';
+            btn.disabled = true;
+            const { error } = await myApp.from('emails').update({ is_trashed: true }).in('id', selectedEmailIds);
+            if(!error) {
+                fetchEmails(); 
+                document.getElementById('empty-reader').style.display = 'flex';
+                document.getElementById('reader-header').style.display = 'none';
+                document.getElementById('reader-frame').style.display = 'none';
+            }
+        }
+
+        // الحذف النهائي للمجموعات
+        async function bulkHardDeleteEmails() {
+            if(selectedEmailIds.length === 0) return;
+            if(confirm(`هل أنت متأكد من حذف ${selectedEmailIds.length} رسالة نهائياً؟`)) {
                 const btn = document.getElementById('btn-bulk-delete');
                 btn.innerText = 'جاري الحذف...';
                 btn.disabled = true;
@@ -397,11 +456,22 @@
                     document.getElementById('empty-reader').style.display = 'flex';
                     document.getElementById('reader-header').style.display = 'none';
                     document.getElementById('reader-frame').style.display = 'none';
-                } else {
-                    alert('حصل خطأ أثناء الحذف الجماعي!');
-                    btn.innerText = `حذف (${selectedEmailIds.length}) 🗑️`;
-                    btn.disabled = false;
                 }
+            }
+        }
+
+        // استرجاع المجموعات
+        async function bulkRestoreEmails() {
+            if(selectedEmailIds.length === 0) return;
+            const btn = document.getElementById('btn-bulk-restore');
+            btn.innerText = 'جاري الاسترجاع...';
+            btn.disabled = true;
+            const { error } = await myApp.from('emails').update({ is_trashed: false }).in('id', selectedEmailIds);
+            if(!error) {
+                fetchEmails(); 
+                document.getElementById('empty-reader').style.display = 'flex';
+                document.getElementById('reader-header').style.display = 'none';
+                document.getElementById('reader-frame').style.display = 'none';
             }
         }
 
@@ -415,61 +485,81 @@
             document.getElementById('reader-subject').innerText = email.subject || 'بدون عنوان';
             document.getElementById('reader-meta').innerHTML = `<strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> <strong>إلى:</strong> ${email.recipient} <br> <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}`;
             
-            document.getElementById('btn-delete-current').onclick = () => deleteEmail(email.id);
+            // تغيير الأزرار حسب التاب
+            if (currentTab === 'trash') {
+                document.getElementById('normal-actions').style.display = 'none';
+                document.getElementById('trash-actions').style.display = 'flex';
+                
+                document.getElementById('btn-hard-delete-current').onclick = () => hardDeleteEmail(email.id);
+                document.getElementById('btn-restore-current').onclick = () => restoreEmail(email.id);
+            } else {
+                document.getElementById('normal-actions').style.display = 'flex';
+                document.getElementById('trash-actions').style.display = 'none';
 
-            // زرار الطباعة 🖨️
-            document.getElementById('btn-print-current').onclick = () => {
-                const iframe = document.getElementById('reader-frame');
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            };
+                document.getElementById('btn-delete-current').onclick = () => softDeleteEmail(email.id);
+                document.getElementById('btn-print-current').onclick = () => {
+                    const iframe = document.getElementById('reader-frame');
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                };
+                document.getElementById('btn-reply-current').onclick = () => {
+                    openCompose(true); 
+                    let replyTo = email.sender;
+                    if (replyTo.includes('<')) { replyTo = replyTo.split('<')[1].split('>')[0]; }
+                    if (currentTab === 'sent') { replyTo = email.recipient; }
+                    document.getElementById('compose-to').value = replyTo;
+                    document.getElementById('compose-subject').value = email.subject.startsWith('رد:') ? email.subject : `رد: ${email.subject || ''}`;
+                    document.getElementById('compose-body').focus();
+                };
+                document.getElementById('btn-forward-current').onclick = () => {
+                    openCompose(false, true); 
+                    document.getElementById('compose-subject').value = `Fwd: ${email.subject || ''}`;
+                    let finalDesign = superDecoder(email.body_text);
+                    let forwardHeader = `<br><br><div style="border-right: 3px solid #cbd5e1; padding-right: 15px; color: #64748b;">
+                    <strong>--- رسالة محولة ---</strong><br>
+                    <strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')}<br>
+                    <strong>إلى:</strong> ${email.recipient}<br>
+                    <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}<br><br>
+                    ${finalDesign}
+                    </div>`;
+                    document.getElementById('compose-body').innerHTML = forwardHeader;
+                    document.getElementById('compose-to').focus();
+                };
+            }
 
             let finalDesign = superDecoder(email.body_text);
-
-            // زرار الرد
-            document.getElementById('btn-reply-current').onclick = () => {
-                openCompose(true); 
-                let replyTo = email.sender;
-                if (replyTo.includes('<')) { replyTo = replyTo.split('<')[1].split('>')[0]; }
-                if (currentTab === 'sent') { replyTo = email.recipient; }
-                document.getElementById('compose-to').value = replyTo;
-                document.getElementById('compose-subject').value = email.subject.startsWith('رد:') ? email.subject : `رد: ${email.subject || ''}`;
-                document.getElementById('compose-body').focus();
-            };
-
-            // زرار إعادة التوجيه ➡️
-            document.getElementById('btn-forward-current').onclick = () => {
-                openCompose(false, true); 
-                document.getElementById('compose-subject').value = `Fwd: ${email.subject || ''}`;
-                
-                let forwardHeader = `<br><br><div style="border-right: 3px solid #cbd5e1; padding-right: 15px; color: #64748b;">
-                <strong>--- رسالة محولة ---</strong><br>
-                <strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')}<br>
-                <strong>إلى:</strong> ${email.recipient}<br>
-                <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}<br><br>
-                ${finalDesign}
-                </div>`;
-                
-                document.getElementById('compose-body').innerHTML = forwardHeader;
-                document.getElementById('compose-to').focus();
-            };
-
             let isDark = document.body.classList.contains('dark-mode');
             let bgCol = isDark ? '#1e293b' : '#fff';
             let txtCol = isDark ? '#f1f5f9' : '#000';
-            
             let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:25px;background:${bgCol};color:${txtCol};font-family:-apple-system, sans-serif;} a{color:#3b82f6;text-decoration:none;font-weight:bold;} div{color:${txtCol} !important; background-color: transparent !important;}</style></head><body>${finalDesign}</body></html>`;
             document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
         }
 
-        async function deleteEmail(id) {
-            if(confirm('هل أنت متأكد من الحذف؟')) {
+        // دوال الحذف المفرد
+        async function softDeleteEmail(id) {
+            await myApp.from('emails').update({ is_trashed: true }).eq('id', id);
+            fetchEmails(); 
+            document.getElementById('empty-reader').style.display = 'flex';
+            document.getElementById('reader-header').style.display = 'none';
+            document.getElementById('reader-frame').style.display = 'none';
+        }
+
+        async function hardDeleteEmail(id) {
+            if(confirm('متأكد من مسح الرسالة للأبد؟')) {
                 await myApp.from('emails').delete().eq('id', id);
                 fetchEmails(); 
                 document.getElementById('empty-reader').style.display = 'flex';
                 document.getElementById('reader-header').style.display = 'none';
                 document.getElementById('reader-frame').style.display = 'none';
             }
+        }
+
+        async function restoreEmail(id) {
+            await myApp.from('emails').update({ is_trashed: false }).eq('id', id);
+            fetchEmails(); 
+            document.getElementById('empty-reader').style.display = 'flex';
+            document.getElementById('reader-header').style.display = 'none';
+            document.getElementById('reader-frame').style.display = 'none';
         }
 
         // حفظ المسودات 💾
@@ -486,7 +576,7 @@
                     badge.style.display = 'inline-block';
                     setTimeout(() => badge.style.display = 'none', 2000);
                 }
-            }, 1000); // بيحفظ بعد ثانية من التوقف عن الكتابة
+            }, 1000); 
         }
 
         function openCompose(isReply = false, isForward = false) { 
@@ -498,7 +588,6 @@
                 document.getElementById('compose-title').innerText = '➡️ إعادة توجيه';
             } else {
                 document.getElementById('compose-title').innerText = '✏️ رسالة جديدة';
-                // استرجاع المسودة لو كانت رسالة جديدة عادية
                 const savedDraft = localStorage.getItem('a2z_draft');
                 if (savedDraft) {
                     const draft = JSON.parse(savedDraft);
@@ -606,11 +695,11 @@
                         sender: `A2Z Mail <${userData.email_address}>`,
                         recipient: to,
                         subject: subject,
-                        body_text: htmlFormat
+                        body_text: htmlFormat,
+                        is_trashed: false // بنأكد إنها مش في المهملات وقت الإرسال
                     }]);
 
                     alert('تم إرسال الرسالة بنجاح! ✅');
-                    // مسح المسودة بعد الإرسال الناجح
                     localStorage.removeItem('a2z_draft');
                     closeCompose();
                     
