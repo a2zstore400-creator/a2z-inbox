@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2Z Mail | إعدادات الحساب</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
+        body.dark-mode { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: #334155; --primary: #60a5fa; }
+        
+        body { font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px 20px; transition: 0.3s; }
+        .container { max-width: 600px; margin: 0 auto; background: var(--card); padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); transition: 0.3s; }
+        
+        h2 { margin-top: 0; color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: var(--text); }
+        
+        input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; background: var(--card); color: var(--text); outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--primary); }
+        body.dark-mode input { background: var(--bg); }
+        input:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; font-size: 1.1rem; width: 100%; transition: 0.2s; margin-top: 10px; }
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-back { background: #64748b; margin-bottom: 20px; width: auto; display: inline-block; text-decoration: none; padding: 8px 15px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="inbox.html" class="btn btn-back">⬅️ الرجوع للصندوق</a>
+        <h2>⚙️ إعدادات الحساب</h2>
+
+        <div class="form-group">
+            <label>اسم المستخدم</label>
+            <input type="text" id="prof-username" disabled>
+        </div>
+        
+        <div class="form-group">
+            <label>البريد الإلكتروني (لا يمكن تغييره)</label>
+            <input type="text" id="prof-email" disabled dir="ltr" style="text-align: right;">
+        </div>
+
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 25px 0;">
+
+        <div class="form-group">
+            <label>إيميل الاسترداد 📩</label>
+            <input type="email" id="prof-recovery" placeholder="إيميلك في Gmail أو Yahoo لاسترجاع الحساب...">
+        </div>
+
+        <div class="form-group">
+            <label>تغيير كلمة المرور 🔑</label>
+            <input type="password" id="prof-password" placeholder="اكتب كلمة المرور الجديدة (أو اتركها فارغة إذا لم ترد التغيير)">
+        </div>
+
+        <button class="btn" onclick="saveProfile()" id="save-btn">حفظ التعديلات 💾</button>
+    </div>
+
+    <script>
+        // تفعيل الوضع الليلي لو اليوزر كان مختاره
+        if (localStorage.getItem('a2z_theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+
+        const userData = JSON.parse(localStorage.getItem('a2z_user'));
+        if (!userData) { window.location.href = 'index.html'; }
+
+        // تعبئة البيانات في الخانات
+        document.getElementById('prof-username').value = userData.username;
+        document.getElementById('prof-email').value = userData.email_address;
+        document.getElementById('prof-recovery').value = userData.recovery_email || '';
+
+        const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
+        const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
+        const myApp = supabase.createClient(S_URL, S_KEY);
+
+        async function saveProfile() {
+            const newRecovery = document.getElementById('prof-recovery').value.trim();
+            const newPassword = document.getElementById('prof-password').value.trim();
+            const btn = document.getElementById('save-btn');
+
+            if (!newRecovery) return alert('يجب إضافة إيميل استرداد لحماية حسابك!');
+
+            btn.innerText = 'جاري الحفظ... ⏳';
+            btn.disabled = true;
+
+            let updates = { recovery_email: newRecovery };
+            if (newPassword) {
+                updates.password = newPassword; // هيتحدث بس لو كتب باسورد جديد
+            }
+
+            try {
+                const { error } = await myApp.from('a2z_users').update(updates).eq('id', userData.id);
+                
+                if (!error) {
+                    alert('تم تحديث بياناتك بنجاح! ✅');
+                    // تحديث اللوكال ستورج عشان السيستم يفضل فاكر البيانات الجديدة
+                    userData.recovery_email = newRecovery;
+                    if (newPassword) userData.password = newPassword;
+                    localStorage.setItem('a2z_user', JSON.stringify(userData));
+                    
+                    document.getElementById('prof-password').value = ''; 
+                } else {
+                    alert('حدث خطأ أثناء حفظ التعديلات.');
+                }
+            } catch (e) {
+                alert('خطأ في الاتصال بالسيرفر.');
+            } finally {
+                btn.innerText = 'حفظ التعديلات 💾';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
