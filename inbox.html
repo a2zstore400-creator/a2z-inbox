@@ -126,18 +126,32 @@
         document.getElementById('display-name').innerText = userData.username;
         document.getElementById('display-email').innerText = userData.email_address;
 
+        // 🛡️ التعديل الجديد: إظهار زر الإدارة للأدمن فقط
+        if (userData.email_address === 'admin@a2z-mail.com') {
+            const sidebar = document.querySelector('.sidebar');
+            const logoutBtn = document.querySelector('.btn-logout');
+            
+            const adminBtn = document.createElement('div');
+            adminBtn.className = 'menu-item';
+            adminBtn.style.backgroundColor = '#1e293b'; // لون كحلي غامق مميز للأدمن
+            adminBtn.style.color = 'white';
+            adminBtn.innerHTML = '⚙️ لوحة الإدارة';
+            adminBtn.onclick = () => window.location.href = 'admin.html';
+            
+            sidebar.insertBefore(adminBtn, logoutBtn);
+        }
+
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
         let allEmails = [];
         let currentTab = 'inbox'; 
 
-        // 🛡️ الميزة الجديدة: عسكري الدرك (فحص الحظر الفوري)
+        // 🛡️ فحص الحظر الفوري
         async function checkSecurityBan() {
             try {
                 const { data, error } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
                 if (data && data.status === 'banned') {
-                    // لو لقى حالته بقت محظور، يمسح بياناته ويطرده فوراً
                     localStorage.removeItem('a2z_user');
                     alert('⛔ تم حظر حسابك من قبل الإدارة. سيتم تسجيل خروجك فوراً.');
                     window.location.href = 'index.html';
@@ -145,11 +159,8 @@
             } catch (err) { console.log("خطأ في فحص الحماية:", err); }
         }
 
-        // تشغيل الفحص أول ما يفتح الصفحة
         checkSecurityBan();
-        // تشغيل الفحص كل 30 ثانية في الخلفية
         setInterval(checkSecurityBan, 30000); 
-        // --------------------------------------------------
 
         function superDecoder(raw) {
             if (!raw) return "";
@@ -287,7 +298,6 @@
         }
 
         async function sendEmail() {
-            // فحص أخير قبل الإرسال للتأكد إنه مش واخد بان في اللحظة دي
             const { data: checkData } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
             if(checkData && checkData.status === 'banned') {
                 alert('⛔ حسابك محظور. لا يمكنك إرسال رسائل.');
