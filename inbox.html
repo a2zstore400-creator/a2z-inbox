@@ -75,9 +75,16 @@
         .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; outline: none; transition: 0.2s; background: var(--card); color: var(--text); }
         .input-field:focus { border-color: var(--primary); }
         body.dark-mode .input-field { background: var(--bg); border: 1px solid var(--border); }
-        .textarea-field { height: 200px; resize: vertical; }
+        .textarea-field { height: 150px; resize: vertical; }
         
-        .modal-actions { display: flex; justify-content: space-between; margin-top: 10px; }
+        .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        
+        /* أزرار المرفقات */
+        .attachment-area { display: flex; align-items: center; gap: 10px; }
+        .btn-attach { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; transition: transform 0.2s; }
+        .btn-attach:hover { transform: scale(1.1); }
+        .attachment-name { font-size: 0.8rem; color: #64748b; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
         .btn-cancel { background: #f1f5f9; color: #475569; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
         .btn-cancel:hover { background: #e2e8f0; }
         body.dark-mode .btn-cancel { background: #334155; color: #cbd5e1; }
@@ -96,9 +103,7 @@
         <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
         
         <div class="menu-item" onclick="window.location.href='profile.html'">⚙️ إعدادات الحساب</div>
-        
         <div class="menu-item" id="btn-theme" onclick="toggleTheme()" style="margin-top: 20px;">🌙 الوضع الليلي</div>
-        
         <div class="menu-item btn-logout" onclick="logout()">🚪 تسجيل خروج</div>
     </div>
 
@@ -141,8 +146,16 @@
             <textarea id="compose-body" class="input-field textarea-field" placeholder="اكتب رسالتك هنا..."></textarea>
             
             <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeCompose()">إلغاء</button>
-                <button class="btn-send" id="btn-send-action" onclick="sendEmail()">إرسال 🚀</button>
+                <div class="attachment-area">
+                    <input type="file" id="compose-attachment" style="display: none;" onchange="handleFileSelect(event)">
+                    <button class="btn-attach" onclick="document.getElementById('compose-attachment').click()" title="إرفاق ملف أو صورة">📎</button>
+                    <span class="attachment-name" id="attachment-name"></span>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-cancel" onclick="closeCompose()">إلغاء</button>
+                    <button class="btn-send" id="btn-send-action" onclick="sendEmail()">إرسال 🚀</button>
+                </div>
             </div>
         </div>
     </div>
@@ -154,22 +167,18 @@
         document.getElementById('display-name').innerText = userData.username;
         document.getElementById('display-email').innerText = userData.email_address;
 
-        // 🛡️ زر الإدارة للأدمن فقط
         if (userData.email_address === 'admin@a2z-mail.com') {
             const sidebar = document.querySelector('.sidebar');
             const themeBtn = document.getElementById('btn-theme');
-            
             const adminBtn = document.createElement('div');
             adminBtn.className = 'menu-item';
             adminBtn.style.backgroundColor = '#1e293b'; 
             adminBtn.style.color = 'white';
             adminBtn.innerHTML = '⚙️ لوحة الإدارة';
             adminBtn.onclick = () => window.location.href = 'admin.html';
-            
             sidebar.insertBefore(adminBtn, themeBtn);
         }
 
-        // 🌙 منطق الوضع الليلي
         const savedTheme = localStorage.getItem('a2z_theme');
         if (savedTheme === 'dark') {
             document.body.classList.add('dark-mode');
@@ -181,7 +190,6 @@
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('a2z_theme', isDark ? 'dark' : 'light');
             document.getElementById('btn-theme').innerText = isDark ? '☀️ الوضع النهاري' : '🌙 الوضع الليلي';
-            
             const activeEmail = document.querySelector('.email-item.selected');
             if (activeEmail) { activeEmail.click(); }
         }
@@ -191,8 +199,8 @@
         const myApp = supabase.createClient(S_URL, S_KEY);
         let allEmails = [];
         let currentTab = 'inbox'; 
+        let selectedFile = null; // متغير لحفظ الملف المرفوع
 
-        // 🛡️ فحص الحظر الفوري
         async function checkSecurityBan() {
             try {
                 const { data, error } = await myApp.from('a2z_users').select('status').eq('id', userData.id).single();
@@ -201,16 +209,14 @@
                     alert('⛔ تم حظر حسابك من قبل الإدارة. سيتم تسجيل خروجك فوراً.');
                     window.location.href = 'index.html';
                 }
-            } catch (err) { console.log("خطأ في فحص الحماية:", err); }
+            } catch (err) {}
         }
-
         checkSecurityBan();
         setInterval(checkSecurityBan, 30000); 
 
         function superDecoder(raw) {
             if (!raw) return "";
             if (!raw.includes('Content-Type:') && (raw.includes('<div') || raw.includes('<html'))) return raw; 
-
             const fixArabic = (str) => { try { return decodeURIComponent(escape(str)); } catch(e) { return str; } };
             try {
                 let parts = raw.split(/--_?[A-Za-z0-9=_-]+/);
@@ -226,15 +232,6 @@
                         } else { return fixArabic(bodyText); }
                     }
                 }
-                let b64Blocks = raw.match(/([A-Za-z0-9+/=\r\n]{300,})/g);
-                if (b64Blocks) {
-                    for (let block of b64Blocks) {
-                        try {
-                            let decoded = fixArabic(atob(block.replace(/[\s\r\n]/g, '')));
-                            if (decoded.includes('<html') || decoded.includes('PlayStation') || decoded.includes('Verify') || decoded.includes('facebook')) return decoded;
-                        } catch(e){}
-                    }
-                }
                 return `<div style="padding:20px; direction:ltr; text-align:left; font-family:monospace; white-space:pre-wrap;">${raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
             } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
         }
@@ -244,26 +241,19 @@
             document.getElementById('tab-inbox').classList.remove('active');
             document.getElementById('tab-sent').classList.remove('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
-            
             document.getElementById('empty-reader').style.display = 'flex';
             document.getElementById('reader-header').style.display = 'none';
             document.getElementById('reader-frame').style.display = 'none';
-            
             fetchEmails();
         }
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
             list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري تحميل الرسائل... ⏳</div>";
-            
             try {
                 let query = myApp.from('emails').select('*').order('created_at', { ascending: false });
-                
-                if (currentTab === 'inbox') {
-                    query = query.eq('recipient', userData.email_address);
-                } else {
-                    query = query.ilike('sender', `%${userData.email_address}%`);
-                }
+                if (currentTab === 'inbox') { query = query.eq('recipient', userData.email_address); } 
+                else { query = query.ilike('sender', `%${userData.email_address}%`); }
 
                 const { data, error } = await query;
                 if (error) throw error;
@@ -277,17 +267,16 @@
                 }
 
                 list.innerHTML = data.map((email, index) => {
-                    let displayPerson = currentTab === 'inbox' 
-                        ? email.sender.split('<')[0].replace(/"/g, '') 
-                        : `إلى: ${email.recipient}`;
+                    let displayPerson = currentTab === 'inbox' ? email.sender.split('<')[0].replace(/"/g, '') : `إلى: ${email.recipient}`;
+                    // هنضيف علامة مشبك لو الرسالة فيها مرفق (بناءً على وجود رابط السوبابيز)
+                    let hasAttachment = email.body_text.includes('supabase.co/storage') ? ' 📎' : '';
 
                     return `
                     <div class="email-item" onclick="openEmail(${index}, this)" id="item-${email.id}">
-                        <div class="e-sender">${displayPerson}</div>
+                        <div class="e-sender">${displayPerson}${hasAttachment}</div>
                         <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
                         <div class="e-date">${new Date(email.created_at).toLocaleString('ar-EG')}</div>
-                    </div>
-                    `;
+                    </div>`;
                 }).join('');
             } catch (err) { list.innerHTML = `<div style="color:red; text-align:center; padding:20px;">حدث خطأ: ${err.message}</div>`; }
         }
@@ -309,20 +298,17 @@
                 let replyTo = email.sender;
                 if (replyTo.includes('<')) { replyTo = replyTo.split('<')[1].split('>')[0]; }
                 if (currentTab === 'sent') { replyTo = email.recipient; }
-
                 document.getElementById('compose-to').value = replyTo;
                 document.getElementById('compose-subject').value = email.subject.startsWith('رد:') ? email.subject : `رد: ${email.subject || ''}`;
                 document.getElementById('compose-body').focus();
             };
 
             let finalDesign = superDecoder(email.body_text);
-            
             let isDark = document.body.classList.contains('dark-mode');
             let bgCol = isDark ? '#1e293b' : '#fff';
             let txtCol = isDark ? '#f1f5f9' : '#000';
             
             let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:25px;background:${bgCol};color:${txtCol};font-family:-apple-system, sans-serif;} a{color:#3b82f6;text-decoration:none;font-weight:bold;} div{color:${txtCol} !important; background-color: transparent !important;}</style></head><body>${finalDesign}</body></html>`;
-            
             document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
         }
 
@@ -339,6 +325,10 @@
         function openCompose(isReply = false) { 
             document.getElementById('compose-modal').style.display = 'flex';
             document.getElementById('compose-title').innerText = isReply ? '↩️ رد على الرسالة' : '✏️ رسالة جديدة';
+            // تفريغ المرفقات عند الفتح
+            selectedFile = null;
+            document.getElementById('compose-attachment').value = '';
+            document.getElementById('attachment-name').innerText = '';
         }
 
         function closeCompose() {
@@ -346,6 +336,26 @@
             document.getElementById('compose-to').value = '';
             document.getElementById('compose-subject').value = '';
             document.getElementById('compose-body').value = '';
+            selectedFile = null;
+            document.getElementById('compose-attachment').value = '';
+            document.getElementById('attachment-name').innerText = '';
+        }
+
+        // دالة اختيار الملف
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                // حد أقصى للملف 5 ميجا بايت
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('حجم الملف كبير جداً! الحد الأقصى 5 ميجابايت.');
+                    event.target.value = '';
+                    selectedFile = null;
+                    document.getElementById('attachment-name').innerText = '';
+                    return;
+                }
+                selectedFile = file;
+                document.getElementById('attachment-name').innerText = file.name;
+            }
         }
 
         async function sendEmail() {
@@ -363,11 +373,45 @@
 
             if(!to || !subject || !bodyText) { alert('يرجى ملء جميع الحقول!'); return; }
 
-            btn.innerText = 'جاري الإرسال... ⏳';
+            btn.innerText = 'جاري المعالجة... ⏳';
             btn.disabled = true;
 
+            let attachmentHtml = '';
+
+            // لو فيه ملف، نرفعه الأول لـ Supabase
+            if (selectedFile) {
+                btn.innerText = 'جاري رفع المرفق... 🚀';
+                const fileExt = selectedFile.name.split('.').pop();
+                // بنعمل اسم عشوائي عشان الملفات متدخلش في بعض
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                
+                const { data: uploadData, error: uploadError } = await myApp.storage
+                    .from('attachments')
+                    .upload(fileName, selectedFile);
+                    
+                if (uploadError) {
+                    alert('فشل رفع الملف: ' + uploadError.message);
+                    btn.innerText = 'إرسال 🚀';
+                    btn.disabled = false;
+                    return;
+                }
+                
+                // نجيب الرابط العام للملف
+                const { data: publicUrlData } = myApp.storage.from('attachments').getPublicUrl(fileName);
+                const fileUrl = publicUrlData.publicUrl;
+                
+                // لو صورة نعرضها مباشرة، لو ملف نحطله زرار تحميل
+                if (selectedFile.type.startsWith('image/')) {
+                    attachmentHtml = `<br><br><div style="text-align:center;"><img src="${fileUrl}" style="max-width:100%; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>`;
+                } else {
+                    attachmentHtml = `<br><br><div style="padding:15px; background:#f8fafc; border-radius:8px; border:1px solid #cbd5e1; display:inline-block;"><a href="${fileUrl}" target="_blank" style="color:#00439c; text-decoration:none; font-weight:bold; display:flex; align-items:center; gap:8px;">📎 تحميل المرفق: ${selectedFile.name}</a></div>`;
+                }
+            }
+
+            btn.innerText = 'جاري الإرسال... ⏳';
+
             const WORKER_URL = "https://late-butterfly-bd1a.a2z-store400.workers.dev"; 
-            const htmlFormat = `<div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; font-size: 16px; color: #333;">${bodyText.replace(/\n/g, '<br>')}</div>`;
+            const htmlFormat = `<div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; font-size: 16px; color: #333;">${bodyText.replace(/\n/g, '<br>')}${attachmentHtml}</div>`;
 
             try {
                 const response = await fetch(WORKER_URL, {
