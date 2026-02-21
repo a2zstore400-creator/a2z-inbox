@@ -93,6 +93,15 @@
         .iframe-container { flex: 1; width: 100%; border: none; background: transparent; }
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; text-align: center; padding: 20px;}
 
+        /* ========= ستايلات الأكواد (2FA) المضافة =========== */
+        .auth-container { flex: 1; padding: 30px; overflow-y: auto; display: none; background: var(--bg); transition: background 0.3s; }
+        .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .auth-card { background: var(--card); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); position: relative; text-align: center; }
+        .auth-account { font-weight: 900; font-size: 1.1rem; color: var(--primary); margin-bottom: 10px; }
+        .auth-code { font-size: 2.5rem; font-weight: 900; letter-spacing: 5px; color: var(--text); text-align: center; margin: 15px 0; font-family: monospace; }
+        .timer-bar { height: 5px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 10px; }
+        .timer-progress { height: 100%; background: var(--primary); width: 100%; transition: width 1s linear; }
+
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;}
         .modal-box { background: var(--card); width: 100%; max-width: 600px; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: background 0.3s; max-height: 90vh; overflow-y: auto; box-sizing: border-box;}
         .modal-title { margin-top: 0; margin-bottom: 10px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
@@ -132,10 +141,10 @@
             .sidebar-overlay.show { display: block; }
 
             .email-list-wrapper { width: 100%; border-left: none; }
-            .email-list-wrapper.hide-on-mobile { display: none; }
+            .email-list-wrapper.hide-on-mobile { display: none !important; }
             
             .email-reader { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; display: none; }
-            .email-reader.show-on-mobile { display: flex; }
+            .email-reader.show-on-mobile { display: flex !important; }
             
             .mobile-back { display: block; }
             .reader-header { padding: 15px; }
@@ -144,15 +153,6 @@
             .modal-box { padding: 15px; }
             .contact-input-group { flex-direction: column; }
         }
-
-        /* ========= ستايلات الأكواد (2FA) المضافة =========== */
-        .auth-container { flex: 1; padding: 30px; overflow-y: auto; display: none; background: var(--bg); }
-        .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .auth-card { background: var(--card); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); position: relative; text-align: center; }
-        .auth-account { font-weight: 900; font-size: 1.1rem; color: var(--primary); margin-bottom: 10px; }
-        .auth-code { font-size: 2.5rem; font-weight: 900; letter-spacing: 5px; color: var(--text); text-align: center; margin: 15px 0; font-family: monospace; }
-        .timer-bar { height: 5px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 10px; }
-        .timer-progress { height: 100%; background: var(--primary); width: 100%; transition: width 1s linear; }
     </style>
 </head>
 <body>
@@ -174,9 +174,9 @@
         <div class="menu-item" id="tab-starred" onclick="loadTab('starred')">⭐️ المميزة</div>
         <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
         <div class="menu-item" id="tab-trash" onclick="loadTab('trash')">🗑️ سلة المهملات</div>
-
-        <div class="menu-item" id="tab-auth" style="background:#fef3c7; color:#d97706" onclick="showAuthSection()">🔐 الأكواد (2FA)</div>
         
+        <div class="menu-item" id="tab-auth" style="background:#fef3c7; color:#d97706" onclick="showAuthSection()">🔐 الأكواد (2FA)</div>
+
         <hr style="border:0; border-top:1px solid var(--border); width:100%; margin:10px 0;">
         <div class="menu-item" onclick="openContactsModal()">📒 جهات الاتصال</div>
         <div class="menu-item" onclick="window.location.href='profile.html'">⚙️ إعدادات الحساب</div>
@@ -197,6 +197,7 @@
         </div>
 
         <div class="workspace">
+            
             <div class="email-list-wrapper" id="list-wrapper">
                 <div class="search-container">
                     <input type="text" id="search-input" class="search-input" placeholder="🔍 ابحث في المرسل أو الموضوع..." oninput="filterEmails()">
@@ -482,9 +483,10 @@
             selectedEmailIds = []; 
             document.getElementById('search-input').value = '';
             
-            // إظهار أقسام البريد واسترجاع الستايل الأصلي بتاعها
+            // إظهار الرسايل واسترجاع الستايل الأصلي
             document.getElementById('list-wrapper').style.display = '';
             document.getElementById('reader-wrapper').style.display = '';
+            
             // إخفاء قسم الأمان
             document.getElementById('auth-section').style.display = 'none';
 
@@ -492,16 +494,17 @@
             const activeTab = document.getElementById(`tab-${tab}`);
             if(activeTab) activeTab.classList.add('active');
             
-            closeReaderMobile(); // إعادة ضبط العرض للموبايل
-            if(window.innerWidth <= 768) toggleSidebar(); // قفل القائمة الجانبية بعد الاختيار
+            closeReaderMobile(); 
+            if(window.innerWidth <= 768) toggleSidebar(); 
             
             fetchEmails();
         }
 
         function showAuthSection() {
-            // إخفاء أقسام البريد 
+            // إخفاء الرسايل
             document.getElementById('list-wrapper').style.display = 'none';
             document.getElementById('reader-wrapper').style.display = 'none';
+            
             // إظهار قسم الأمان
             document.getElementById('auth-section').style.display = 'block';
             
@@ -746,7 +749,7 @@
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
-        // ================== دوال الأمان 2FA الجديدة المضافة ==================
+        // ================== دوال الأمان 2FA المضافة ==================
         function openAddAuthModal() { document.getElementById('add-auth-modal').style.display = 'flex'; }
 
         async function saveAuthAccount() {
@@ -809,7 +812,7 @@
                 loadAuthAccounts(); 
             }
         }
-        // ====================================================================
+        // =============================================================
 
         function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
         window.onload = fetchEmails;
