@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A2Z Mail | صندوق الوارد والأمان</title>
+    <title>A2Z Mail | صندوق الوارد</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsOTP/2.0.0/jsOTP.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
@@ -93,7 +93,7 @@
         .iframe-container { flex: 1; width: 100%; border: none; background: transparent; }
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; text-align: center; padding: 20px;}
 
-        /* ستايل الأكواد (2FA) */
+        /* ستايلات الـ 2FA المضافة */
         .auth-container { flex: 1; padding: 30px; overflow-y: auto; display: none; }
         .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         .auth-card { background: var(--card); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); position: relative; text-align: center; }
@@ -174,6 +174,7 @@
         <div class="menu-item" id="tab-starred" onclick="loadTab('starred')">⭐️ المميزة</div>
         <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
         <div class="menu-item" id="tab-trash" onclick="loadTab('trash')">🗑️ سلة المهملات</div>
+        
         <div class="menu-item" id="tab-auth" style="background:#fef3c7; color:#d97706" onclick="showAuthSection()">🔐 الأكواد (2FA)</div>
         
         <hr style="border:0; border-top:1px solid var(--border); width:100%; margin:10px 0;">
@@ -196,7 +197,7 @@
         </div>
 
         <div class="workspace">
-            <div id="mail-section" style="display: contents;">
+            <div id="mail-section" style="display: flex; width: 100%; height: 100%; position: relative;">
                 <div class="email-list-wrapper" id="list-wrapper">
                     <div class="search-container">
                         <input type="text" id="search-input" class="search-input" placeholder="🔍 ابحث في المرسل أو الموضوع..." oninput="filterEmails()">
@@ -243,11 +244,11 @@
             <div id="auth-section" class="auth-container">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
                     <h2 style="margin:0;">🔐 مدير أكواد التحقق (2FA)</h2>
-                    <button class="btn-compose" style="width:auto; padding:10px 20px;" onclick="openAddAuthModal()">+ إضافة حساب جديد</button>
+                    <button class="btn-compose" style="width:auto; padding:10px 20px; margin-bottom:0;" onclick="openAddAuthModal()">+ إضافة حساب جديد</button>
                 </div>
-                <div class="auth-grid" id="auth-grid">
-                    </div>
+                <div class="auth-grid" id="auth-grid"></div>
             </div>
+
         </div>
     </div>
 
@@ -286,19 +287,6 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="add-auth-modal">
-        <div class="modal-box" style="max-width: 400px;">
-            <h3 class="modal-title">➕ إضافة حساب جديد</h3>
-            <p style="font-size:0.8rem; color:#64748b;">ادخل الاسم (مثلاً: فيسبوك) والكود السري (Secret Key) اللي الموقع ادهولك.</p>
-            <input type="text" id="auth-acc-name" class="input-field" placeholder="اسم الحساب (مثلاً: Google)">
-            <input type="text" id="auth-acc-key" class="input-field" placeholder="الكود السري (Secret Key)">
-            <div style="display:flex; gap:10px;">
-                <button class="btn-send" onclick="saveAuthAccount()">حفظ الحساب ✅</button>
-                <button class="btn-cancel" onclick="document.getElementById('add-auth-modal').style.display='none'">إلغاء</button>
-            </div>
-        </div>
-    </div>
-
     <div class="modal-overlay" id="contacts-modal">
         <div class="modal-box" style="max-width: 400px;">
             <h3 class="modal-title">📒 دفتر العناوين</h3>
@@ -313,6 +301,19 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="add-auth-modal">
+        <div class="modal-box" style="max-width: 400px;">
+            <h3 class="modal-title">➕ إضافة حساب جديد</h3>
+            <p style="font-size:0.8rem; color:#64748b;">ادخل الاسم (مثلاً: فيسبوك) والكود السري (Secret Key).</p>
+            <input type="text" id="auth-acc-name" class="input-field" placeholder="اسم الحساب (مثلاً: Google)">
+            <input type="text" id="auth-acc-key" class="input-field" placeholder="الكود السري (Secret Key)">
+            <div style="display:flex; gap:10px;">
+                <button class="btn-send" onclick="saveAuthAccount()" style="width: 100%;">حفظ الحساب ✅</button>
+                <button class="btn-cancel" onclick="document.getElementById('add-auth-modal').style.display='none'" style="width: 100%;">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <div id="live-toast" class="toast-notification">🔔 رسالة جديدة!</div>
 
     <script>
@@ -321,11 +322,6 @@
 
         document.getElementById('display-name').innerText = userData.username;
         document.getElementById('display-email').innerText = userData.email_address;
-
-        const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
-        const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
-        const myApp = supabase.createClient(S_URL, S_KEY);
-        const totp = new jsOTP.totp();
 
         if (userData.email_address === 'admin@a2z-mail.com') {
             const sidebar = document.querySelector('.sidebar');
@@ -347,6 +343,7 @@
             if (activeEmail) activeEmail.click();
         }
 
+        // دوال الموبايل
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('open');
             document.getElementById('sidebar-overlay').classList.toggle('show');
@@ -363,6 +360,11 @@
 
         function execCmd(command) { document.execCommand(command, false, null); document.getElementById('compose-body').focus(); }
         function insertLink() { let url = prompt("أدخل الرابط:"); if(url) document.execCommand('createLink', false, url); }
+
+        const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
+        const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
+        const myApp = supabase.createClient(S_URL, S_KEY);
+        const totp = new jsOTP.totp(); // تفعيل مكتبة الـ 2FA هنا
         
         let allEmails = [];
         let filteredEmails = [];
@@ -373,70 +375,6 @@
         let currentPage = 1;
         let totalCount = 0;
 
-        // دوال الأمان الجديدة (2FA)
-        function showAuthSection() {
-            document.getElementById('mail-section').style.display = 'none';
-            document.getElementById('auth-section').style.display = 'block';
-            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-auth').classList.add('active');
-            if(window.innerWidth <= 768) toggleSidebar();
-            loadAuthAccounts();
-        }
-
-        function openAddAuthModal() { document.getElementById('add-auth-modal').style.display = 'flex'; }
-
-        async function saveAuthAccount() {
-            const name = document.getElementById('auth-acc-name').value.trim();
-            const key = document.getElementById('auth-acc-key').value.trim().replace(/\s/g, '');
-            if(!name || !key) return alert('ملى البيانات يا مدير!');
-
-            const { error } = await myApp.from('a2z_2fa').insert([
-                { user_id: userData.id, account_name: name, secret_key: key }
-            ]);
-
-            if(!error) {
-                alert('تمت الإضافة بنجاح! 🎉');
-                document.getElementById('add-auth-modal').style.display = 'none';
-                loadAuthAccounts();
-            } else { alert('خطأ في الحفظ!'); }
-        }
-
-        async function loadAuthAccounts() {
-            const { data, error } = await myApp.from('a2z_2fa').select('*').eq('user_id', userData.id);
-            const grid = document.getElementById('auth-grid');
-            if(!data || data.length === 0) grid.innerHTML = '<p>لا يوجد حسابات مضافة.</p>';
-            else {
-                grid.innerHTML = data.map(acc => `
-                    <div class="auth-card" id="card-${acc.id}">
-                        <div class="auth-account">${acc.account_name}</div>
-                        <div class="auth-code" id="code-${acc.id}">------</div>
-                        <div class="timer-bar"><div class="timer-progress" id="timer-${acc.id}"></div></div>
-                        <button onclick="deleteAuth('${acc.id}')" style="margin-top:10px; border:none; background:none; color:red; cursor:pointer;">حذف الحساب 🗑️</button>
-                    </div>
-                `).join('');
-                startAuthUpdates(data);
-            }
-        }
-
-        function startAuthUpdates(accounts) {
-            function update() {
-                const remains = 30 - (new Date().getSeconds() % 30);
-                accounts.forEach(acc => {
-                    try {
-                        const code = totp.getOTP(acc.secret_key);
-                        document.getElementById(`code-${acc.id}`).innerText = code;
-                        document.getElementById(`timer-${acc.id}`).style.width = (remains / 30) * 100 + '%';
-                    } catch(e) {}
-                });
-            }
-            setInterval(update, 1000); update();
-        }
-
-        async function deleteAuth(id) {
-            if(confirm('متأكد؟')) { await myApp.from('a2z_2fa').delete().eq('id', id); loadAuthAccounts(); }
-        }
-
-        // تكملة دوال البريد الأصلية
         function setupRealtime() {
             myApp.channel('custom-all-channel')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emails', filter: `recipient=eq.${userData.email_address}` }, payload => {
@@ -466,7 +404,6 @@
         let myContacts = JSON.parse(localStorage.getItem(`a2z_contacts_${userData.email_address}`)) || [];
         function refreshContactsSelect() {
             const sel = document.getElementById('contact-selector');
-            if(!sel) return;
             sel.innerHTML = '<option value="">+ جهات الاتصال</option>';
             myContacts.forEach(c => {
                 let opt = document.createElement('option');
@@ -537,25 +474,26 @@
             } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
         }
 
+        // التعديل هنا عشان يظهر ويخفي البريد والأمان
         function loadTab(tab) {
             currentTab = tab;
             currentPage = 1; 
             selectedEmailIds = []; 
-            document.getElementById('mail-section').style.display = 'contents';
+            document.getElementById('mail-section').style.display = 'flex';
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('search-input').value = '';
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
             
-            closeReaderMobile();
-            if(window.innerWidth <= 768) toggleSidebar();
+            closeReaderMobile(); // إعادة ضبط العرض للموبايل
+            if(window.innerWidth <= 768) toggleSidebar(); // قفل القائمة الجانبية بعد الاختيار
             
             fetchEmails();
         }
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
-            list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري تحميل الرسائل... ⏳</div>";
+            list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري التحميل... ⏳</div>";
             selectedEmailIds = []; 
             
             const from = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -703,6 +641,7 @@
             document.querySelectorAll('.email-item').forEach(el => el.classList.remove('selected'));
             element.classList.add('selected');
             
+            // تفعيل نظام العرض للموبايل
             document.getElementById('list-wrapper').classList.add('hide-on-mobile');
             document.getElementById('reader-wrapper').classList.add('show-on-mobile');
 
@@ -781,6 +720,83 @@
                 } else alert('حدث خطأ');
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
+
+        // ================== دوال الأمان (2FA) ==================
+        function showAuthSection() {
+            document.getElementById('mail-section').style.display = 'none';
+            document.getElementById('auth-section').style.display = 'block';
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-auth').classList.add('active');
+            
+            closeReaderMobile();
+            if(window.innerWidth <= 768) toggleSidebar();
+            
+            loadAuthAccounts();
+        }
+
+        function openAddAuthModal() { document.getElementById('add-auth-modal').style.display = 'flex'; }
+
+        async function saveAuthAccount() {
+            const name = document.getElementById('auth-acc-name').value.trim();
+            const key = document.getElementById('auth-acc-key').value.trim().replace(/\s/g, '');
+            if(!name || !key) return alert('ملى البيانات يا مدير!');
+
+            const { error } = await myApp.from('a2z_2fa').insert([
+                { user_id: userData.id, account_name: name, secret_key: key }
+            ]);
+
+            if(!error) {
+                alert('تمت الإضافة بنجاح! 🎉');
+                document.getElementById('add-auth-modal').style.display = 'none';
+                document.getElementById('auth-acc-name').value = '';
+                document.getElementById('auth-acc-key').value = '';
+                loadAuthAccounts();
+            } else { alert('خطأ في الحفظ، تأكد من الكود السري!'); }
+        }
+
+        let authInterval;
+        async function loadAuthAccounts() {
+            const { data, error } = await myApp.from('a2z_2fa').select('*').eq('user_id', userData.id);
+            const grid = document.getElementById('auth-grid');
+            if(!data || data.length === 0) grid.innerHTML = '<p style="color:#64748b;">لا يوجد حسابات مضافة حتى الآن.</p>';
+            else {
+                grid.innerHTML = data.map(acc => `
+                    <div class="auth-card" id="card-${acc.id}">
+                        <button onclick="deleteAuth('${acc.id}')" style="position:absolute; top:15px; left:15px; background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.2rem;">🗑️</button>
+                        <div class="auth-account">${acc.account_name}</div>
+                        <div class="auth-code" id="code-${acc.id}">------</div>
+                        <div class="timer-bar"><div class="timer-progress" id="timer-${acc.id}"></div></div>
+                    </div>
+                `).join('');
+                startAuthUpdates(data);
+            }
+        }
+
+        function startAuthUpdates(accounts) {
+            if(authInterval) clearInterval(authInterval);
+            function update() {
+                const remains = 30 - (new Date().getSeconds() % 30);
+                accounts.forEach(acc => {
+                    try {
+                        const code = totp.getOTP(acc.secret_key);
+                        const codeEl = document.getElementById(`code-${acc.id}`);
+                        if(codeEl) codeEl.innerText = code;
+                        const timerEl = document.getElementById(`timer-${acc.id}`);
+                        if(timerEl) timerEl.style.width = (remains / 30) * 100 + '%';
+                    } catch(e) {}
+                });
+            }
+            authInterval = setInterval(update, 1000); 
+            update();
+        }
+
+        async function deleteAuth(id) {
+            if(confirm('هل أنت متأكد من حذف هذا الحساب؟')) { 
+                await myApp.from('a2z_2fa').delete().eq('id', id); 
+                loadAuthAccounts(); 
+            }
+        }
+        // ========================================================
 
         function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
         window.onload = fetchEmails;
