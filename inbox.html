@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A2Z Mail | صندوق الوارد</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsOTP/2.0.0/jsOTP.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; --star: #eab308; }
@@ -145,11 +144,11 @@
             .contact-input-group { flex-direction: column; }
         }
 
-        /* ستايلات قسم الأمان */
+        /* ستايلات قسم الأمان 2FA */
         .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .auth-card { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid var(--border); text-align: center; position: relative; }
-        .auth-code { font-size: 2.2rem; font-weight: bold; color: var(--primary); font-family: monospace; letter-spacing: 5px; margin: 15px 0; }
-        .timer-bar { height: 5px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+        .auth-code { font-size: 2.5rem; font-weight: bold; color: var(--primary); font-family: monospace; letter-spacing: 5px; margin: 15px 0; }
+        .timer-bar { height: 6px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 10px; }
         .timer-progress { height: 100%; background: var(--primary); width: 100%; transition: width 1s linear; }
     </style>
 </head>
@@ -470,8 +469,6 @@
             } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
         }
 
-        // ========================================================
-        // وظائف التبديل الجديدة والآمنة 100%
         function loadTab(tab) {
             currentTab = tab;
             currentPage = 1; 
@@ -506,7 +503,6 @@
 
             loadAuthAccounts();
         }
-        // ========================================================
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
@@ -738,7 +734,46 @@
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
-        // ================== دوال الأمان 2FA (في كبسولة عزل) ==================
+        // ================== نظام الأمان (خوارزمية مدمجة بالكامل) ==================
+        // الدالة دي بتحول الكود السري (Secret Key) لـ 6 أرقام من غير الحاجة لأي مكتبة خارجية!
+        async function getTOTP(secretKey) {
+            try {
+                secretKey = secretKey.replace(/\s+/g, '').toUpperCase();
+                const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+                let bits = '';
+                for (let i = 0; i < secretKey.length; i++) {
+                    const val = base32chars.indexOf(secretKey.charAt(i));
+                    if (val === -1) continue; 
+                    bits += val.toString(2).padStart(5, '0');
+                }
+                const bytes = new Uint8Array(Math.floor(bits.length / 8));
+                for (let i = 0; i < bytes.length; i++) {
+                    bytes[i] = parseInt(bits.substr(i * 8, 8), 2);
+                }
+
+                const time = Math.floor(Date.now() / 1000 / 30);
+                const buffer = new ArrayBuffer(8);
+                const view = new DataView(buffer);
+                view.setUint32(4, time, false);
+
+                const key = await crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+                const signature = await crypto.subtle.sign("HMAC", key, buffer);
+                const hmac = new Uint8Array(signature);
+
+                const offset = hmac[19] & 0xf;
+                const code = (
+                    ((hmac[offset] & 0x7f) << 24) |
+                    ((hmac[offset + 1] & 0xff) << 16) |
+                    ((hmac[offset + 2] & 0xff) << 8) |
+                    (hmac[offset + 3] & 0xff)
+                ) % 1000000;
+
+                return code.toString().padStart(6, '0');
+            } catch (err) {
+                return "رمز غير صالح";
+            }
+        }
+
         async function saveAuthAccount() {
             const name = document.getElementById('auth-acc-name').value.trim();
             const key = document.getElementById('auth-acc-key').value.trim().replace(/\s/g, '');
@@ -762,7 +797,7 @@
             const { data } = await myApp.from('a2z_2fa').select('*').eq('user_id', userData.id);
             const grid = document.getElementById('auth-grid');
             if(!data || data.length === 0) {
-                grid.innerHTML = '<p style="color:#64748b;">لا يوجد حسابات مضافة.</p>';
+                grid.innerHTML = '<p style="color:#64748b; font-weight:bold; grid-column: 1/-1;">لا يوجد حسابات مضافة حتى الآن.</p>';
                 if(authInterval) clearInterval(authInterval);
                 return;
             }
@@ -776,25 +811,24 @@
                 </div>
             `).join('');
 
+            startAuthUpdates(data);
+        }
+
+        function startAuthUpdates(accounts) {
             if(authInterval) clearInterval(authInterval);
-
-            // تفعيل المكتبة هنا بأمان عشان لو فيها خطأ متأثرش على البريد
-            let myTotp;
-            try { myTotp = new jsOTP.totp(); } catch(e) { console.error("مكتبة OTP لم تعمل"); }
-
-            authInterval = setInterval(() => {
+            
+            async function update() {
                 const remains = 30 - (new Date().getSeconds() % 30);
-                data.forEach(acc => {
-                    try {
-                        if(myTotp) {
-                            document.getElementById(`code-${acc.id}`).innerText = myTotp.getOTP(acc.secret_key);
-                            document.getElementById(`timer-${acc.id}`).style.width = (remains / 30) * 100 + '%';
-                        } else {
-                            document.getElementById(`code-${acc.id}`).innerText = "خطأ بالمكتبة";
-                        }
-                    } catch(e) {}
+                accounts.forEach(async acc => {
+                    const codeEl = document.getElementById(`code-${acc.id}`);
+                    const timerEl = document.getElementById(`timer-${acc.id}`);
+                    if(codeEl) codeEl.innerText = await getTOTP(acc.secret_key);
+                    if(timerEl) timerEl.style.width = (remains / 30) * 100 + '%';
                 });
-            }, 1000);
+            }
+            
+            authInterval = setInterval(update, 1000); 
+            update();
         }
 
         async function deleteAuth(id) {
