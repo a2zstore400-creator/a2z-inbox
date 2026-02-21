@@ -93,15 +93,6 @@
         .iframe-container { flex: 1; width: 100%; border: none; background: transparent; }
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; text-align: center; padding: 20px;}
 
-        /* ========= ستايلات الأكواد (2FA) المضافة =========== */
-        .auth-container { flex: 1; padding: 30px; overflow-y: auto; display: none; background: var(--bg); transition: background 0.3s; }
-        .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .auth-card { background: var(--card); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); position: relative; text-align: center; }
-        .auth-account { font-weight: 900; font-size: 1.1rem; color: var(--primary); margin-bottom: 10px; }
-        .auth-code { font-size: 2.5rem; font-weight: 900; letter-spacing: 5px; color: var(--text); text-align: center; margin: 15px 0; font-family: monospace; }
-        .timer-bar { height: 5px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 10px; }
-        .timer-progress { height: 100%; background: var(--primary); width: 100%; transition: width 1s linear; }
-
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;}
         .modal-box { background: var(--card); width: 100%; max-width: 600px; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: background 0.3s; max-height: 90vh; overflow-y: auto; box-sizing: border-box;}
         .modal-title { margin-top: 0; margin-bottom: 10px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
@@ -141,10 +132,10 @@
             .sidebar-overlay.show { display: block; }
 
             .email-list-wrapper { width: 100%; border-left: none; }
-            .email-list-wrapper.hide-on-mobile { display: none !important; }
+            .email-list-wrapper.hide-on-mobile { display: none; }
             
             .email-reader { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; display: none; }
-            .email-reader.show-on-mobile { display: flex !important; }
+            .email-reader.show-on-mobile { display: flex; }
             
             .mobile-back { display: block; }
             .reader-header { padding: 15px; }
@@ -153,6 +144,16 @@
             .modal-box { padding: 15px; }
             .contact-input-group { flex-direction: column; }
         }
+
+        /* ========= ستايلات الأكواد (2FA) والإخفاء الآمن =========== */
+        .d-none { display: none !important; }
+        .auth-container { flex: 1; padding: 30px; overflow-y: auto; background: var(--bg); transition: background 0.3s; }
+        .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .auth-card { background: var(--card); padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); position: relative; text-align: center; }
+        .auth-account { font-weight: 900; font-size: 1.1rem; color: var(--primary); margin-bottom: 10px; }
+        .auth-code { font-size: 2.5rem; font-weight: 900; letter-spacing: 5px; color: var(--text); text-align: center; margin: 15px 0; font-family: monospace; }
+        .timer-bar { height: 5px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 10px; }
+        .timer-progress { height: 100%; background: var(--primary); width: 100%; transition: width 1s linear; }
     </style>
 </head>
 <body>
@@ -198,49 +199,51 @@
 
         <div class="workspace">
             
-            <div class="email-list-wrapper" id="list-wrapper">
-                <div class="search-container">
-                    <input type="text" id="search-input" class="search-input" placeholder="🔍 ابحث في المرسل أو الموضوع..." oninput="filterEmails()">
-                </div>
-                
-                <div class="email-list-container" id="emails-list">
-                    <div style="padding: 40px; text-align: center; color: #64748b;">جاري تحميل الرسائل... ⏳</div>
-                </div>
-
-                <div class="pagination-bar">
-                    <button class="page-btn" id="btn-prev" onclick="changePage(-1)">السابق</button>
-                    <span id="page-info" style="font-size: 0.9rem; font-weight: bold; color: var(--text);">صفحة 1</span>
-                    <button class="page-btn" id="btn-next" onclick="changePage(1)">التالي</button>
-                </div>
-            </div>
-
-            <div class="email-reader" id="reader-wrapper">
-                <div class="empty-state" id="empty-reader">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="80" height="80" style="opacity:0.5; color:var(--primary); margin-bottom:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    <h2>لم يتم تحديد رسالة</h2>
-                    <p>اختر رسالة من القائمة لقراءتها هنا</p>
-                </div>
-
-                <div class="reader-header" id="reader-header">
-                    <button class="mobile-back" onclick="closeReaderMobile()">⬅️ العودة للقائمة</button>
+            <div id="mail-section" style="display: contents;">
+                <div class="email-list-wrapper" id="list-wrapper">
+                    <div class="search-container">
+                        <input type="text" id="search-input" class="search-input" placeholder="🔍 ابحث في المرسل أو الموضوع..." oninput="filterEmails()">
+                    </div>
                     
-                    <div class="reader-actions" id="normal-actions">
-                        <button class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
-                        <button class="btn-action btn-forward" id="btn-forward-current">توجيه ➡️</button>
-                        <button class="btn-action btn-print" id="btn-print-current">طباعة 🖨️</button>
-                        <button class="btn-action btn-delete" id="btn-delete-current">للمهملات 🗑️</button>
+                    <div class="email-list-container" id="emails-list">
+                        <div style="padding: 40px; text-align: center; color: #64748b;">جاري تحميل الرسائل... ⏳</div>
                     </div>
-                    <div class="reader-actions" id="trash-actions" style="display:none;">
-                        <button class="btn-action btn-restore" id="btn-restore-current">استرجاع ♻️</button>
-                        <button class="btn-action btn-delete" id="btn-hard-delete-current">حذف نهائي 💥</button>
+
+                    <div class="pagination-bar">
+                        <button class="page-btn" id="btn-prev" onclick="changePage(-1)">السابق</button>
+                        <span id="page-info" style="font-size: 0.9rem; font-weight: bold; color: var(--text);">صفحة 1</span>
+                        <button class="page-btn" id="btn-next" onclick="changePage(1)">التالي</button>
                     </div>
-                    <div class="reader-subject" id="reader-subject" style="margin-top: 15px; clear: both;"></div>
-                    <div class="reader-meta" id="reader-meta"></div>
                 </div>
-                <iframe class="iframe-container" id="reader-frame" style="display:none;" name="reader-frame"></iframe>
+
+                <div class="email-reader" id="reader-wrapper">
+                    <div class="empty-state" id="empty-reader">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="80" height="80" style="opacity:0.5; color:var(--primary); margin-bottom:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <h2>لم يتم تحديد رسالة</h2>
+                        <p>اختر رسالة من القائمة لقراءتها هنا</p>
+                    </div>
+
+                    <div class="reader-header" id="reader-header">
+                        <button class="mobile-back" onclick="closeReaderMobile()">⬅️ العودة للقائمة</button>
+                        
+                        <div class="reader-actions" id="normal-actions">
+                            <button class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
+                            <button class="btn-action btn-forward" id="btn-forward-current">توجيه ➡️</button>
+                            <button class="btn-action btn-print" id="btn-print-current">طباعة 🖨️</button>
+                            <button class="btn-action btn-delete" id="btn-delete-current">للمهملات 🗑️</button>
+                        </div>
+                        <div class="reader-actions" id="trash-actions" style="display:none;">
+                            <button class="btn-action btn-restore" id="btn-restore-current">استرجاع ♻️</button>
+                            <button class="btn-action btn-delete" id="btn-hard-delete-current">حذف نهائي 💥</button>
+                        </div>
+                        <div class="reader-subject" id="reader-subject" style="margin-top: 15px; clear: both;"></div>
+                        <div class="reader-meta" id="reader-meta"></div>
+                    </div>
+                    <iframe class="iframe-container" id="reader-frame" style="display:none;" name="reader-frame"></iframe>
+                </div>
             </div>
 
-            <div id="auth-section" class="auth-container">
+            <div id="auth-section" class="auth-container d-none">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
                     <h2 style="margin:0;">🔐 مدير أكواد التحقق (2FA)</h2>
                     <button class="btn-compose" style="width:auto; padding:10px 20px; margin-bottom:0;" onclick="openAddAuthModal()">+ إضافة حساب جديد</button>
@@ -476,19 +479,16 @@
             } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
         }
 
-        // ================= التعديل الذكي للتبديل بين الصفحات =================
+        // ================= التعديل الآمن لفتح الصناديق =================
         function loadTab(tab) {
             currentTab = tab;
             currentPage = 1; 
             selectedEmailIds = []; 
             document.getElementById('search-input').value = '';
             
-            // إظهار الرسايل واسترجاع الستايل الأصلي
-            document.getElementById('list-wrapper').style.display = '';
-            document.getElementById('reader-wrapper').style.display = '';
-            
-            // إخفاء قسم الأمان
-            document.getElementById('auth-section').style.display = 'none';
+            // الحل السحري: إخفاء الأمان وإظهار الرسايل بالكلاس عشان مفيش حاجة تعلق
+            document.getElementById('mail-section').classList.remove('d-none');
+            document.getElementById('auth-section').classList.add('d-none');
 
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
             const activeTab = document.getElementById(`tab-${tab}`);
@@ -501,12 +501,9 @@
         }
 
         function showAuthSection() {
-            // إخفاء الرسايل
-            document.getElementById('list-wrapper').style.display = 'none';
-            document.getElementById('reader-wrapper').style.display = 'none';
-            
-            // إظهار قسم الأمان
-            document.getElementById('auth-section').style.display = 'block';
+            // إخفاء الرسايل وإظهار الأمان بأمان تام
+            document.getElementById('mail-section').classList.add('d-none');
+            document.getElementById('auth-section').classList.remove('d-none');
             
             document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
             const authTab = document.getElementById('tab-auth');
@@ -749,7 +746,7 @@
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
-        // ================== دوال الأمان 2FA المضافة ==================
+        // ================== دوال الأمان 2FA (بدون مساس بأساس الموقع) ==================
         function openAddAuthModal() { document.getElementById('add-auth-modal').style.display = 'flex'; }
 
         async function saveAuthAccount() {
@@ -812,7 +809,7 @@
                 loadAuthAccounts(); 
             }
         }
-        // =============================================================
+        // ====================================================================
 
         function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
         window.onload = fetchEmails;
