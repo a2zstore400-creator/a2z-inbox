@@ -7,73 +7,101 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; --star: #eab308; }
-        body.dark-mode { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: #334155; --primary: #60a5fa; }
+        :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: rgba(226, 232, 240, 0.8); --star: #eab308; }
+        body.dark-mode { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: rgba(51, 65, 85, 0.8); --primary: #60a5fa; }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         body.dark-mode ::-webkit-scrollbar-thumb { background: #475569; }
 
-        body { font-family: 'Cairo', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; }
+        /* خلفية فيها تدرج لوني خفيف عشان يظهر تأثير الزجاج */
+        body { 
+            font-family: 'Cairo', sans-serif; color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; 
+            background: linear-gradient(135deg, #f4f6f8 0%, #e2e8f0 100%); transition: background 0.3s, color 0.3s; 
+        }
+        body.dark-mode { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
 
         /* ستايل الموبايل الجديد والقائمة */
         .mobile-toggle { display: none; background: transparent; border: none; font-size: 1.8rem; cursor: pointer; color: var(--primary); padding: 0; }
-        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9; }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9; backdrop-filter: blur(3px); }
         .mobile-back { display: none; background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 8px; font-family: 'Cairo'; font-weight: bold; cursor: pointer; margin-bottom: 15px; font-size: 0.9rem; }
         body.dark-mode .mobile-back { background: #334155; color: #cbd5e1; }
 
-        .sidebar { width: 250px; background: var(--card); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; z-index: 10; box-shadow: -2px 0 10px rgba(0,0,0,0.02); transition: right 0.3s, background 0.3s; }
+        /* تأثير الزجاج (Glassmorphism) للقائمة الجانبية */
+        .sidebar { 
+            width: 250px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; z-index: 10; 
+            box-shadow: -2px 0 10px rgba(0,0,0,0.05); transition: right 0.3s, background 0.3s; 
+        }
+        body.dark-mode .sidebar { background: rgba(30, 41, 59, 0.85); }
+
         .logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 30px; }
         .menu-item { padding: 12px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 8px; transition: 0.2s; display: flex; align-items: center; gap: 10px; color: #475569; }
-        
-        .menu-item.active { background: #e0e7ff; color: var(--primary); }
-        .menu-item:hover:not(.active) { background: #f1f5f9; color: var(--primary); }
+        .menu-item.active { background: rgba(0, 67, 156, 0.1); color: var(--primary); transform: translateX(-5px); }
+        .menu-item:hover:not(.active) { background: rgba(0, 0, 0, 0.05); color: var(--primary); }
         
         body.dark-mode .menu-item { color: #cbd5e1; }
-        body.dark-mode .menu-item.active { background: #334155; color: var(--primary); }
-        body.dark-mode .menu-item:hover:not(.active) { background: #334155; color: var(--primary); }
+        body.dark-mode .menu-item.active { background: rgba(96, 165, 250, 0.15); color: var(--primary); }
+        body.dark-mode .menu-item:hover:not(.active) { background: rgba(255, 255, 255, 0.05); color: var(--primary); }
 
-        .btn-compose { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-family: 'Cairo'; cursor: pointer; margin-bottom: 20px; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; width: 100%;}
-        .btn-compose:hover { transform: translateY(-2px); opacity: 0.9; }
-        .btn-logout { margin-top: auto; color: #ef4444; background: #fee2e2; }
-        .btn-logout:hover:not(.active) { background: #fecaca; color: #dc2626; }
-        body.dark-mode .btn-logout { background: #451a1e; color: #fca5a5; }
+        .btn-compose { background: linear-gradient(135deg, var(--primary), #3b82f6); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-family: 'Cairo'; cursor: pointer; margin-bottom: 20px; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(0,67,156,0.3); transition: 0.3s; width: 100%;}
+        .btn-compose:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,67,156,0.4); }
+        
+        .btn-logout { margin-top: auto; color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .btn-logout:hover:not(.active) { background: rgba(239, 68, 68, 0.2); color: #dc2626; }
 
-        .main-content { flex: 1; display: flex; flex-direction: column; background: var(--bg); transition: background 0.3s; width: 100%; position: relative; }
-        .header { background: var(--card); padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.3s; }
+        .main-content { flex: 1; display: flex; flex-direction: column; width: 100%; position: relative; }
+        
+        /* تأثير الزجاج للهيدر */
+        .header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.3s; }
+        body.dark-mode .header { background: rgba(30, 41, 59, 0.85); }
+        
         .user-info { font-weight: bold; color: var(--text); font-size: 1.1rem; display: flex; align-items: center; gap: 15px; }
-        .user-email { font-size: 0.9rem; color: var(--primary); background: #e0e7ff; padding: 6px 15px; border-radius: 20px; font-weight: bold; }
-        body.dark-mode .user-email { background: #1e3a8a; color: #93c5fd; }
+        .user-email { font-size: 0.9rem; color: var(--primary); background: rgba(0, 67, 156, 0.1); padding: 6px 15px; border-radius: 20px; font-weight: bold; }
+        body.dark-mode .user-email { background: rgba(96, 165, 250, 0.15); color: #93c5fd; }
 
         .workspace { display: flex; flex: 1; overflow: hidden; position: relative; }
         
-        .email-list-wrapper { width: 35%; border-left: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; transition: background 0.3s; }
+        .email-list-wrapper { width: 35%; border-left: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; transition: background 0.3s; z-index: 1; }
         .search-container { padding: 15px; border-bottom: 1px solid var(--border); background: var(--card); }
         .search-input { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: 20px; font-family: 'Cairo'; font-size: 0.9rem; outline: none; background: var(--bg); color: var(--text); box-sizing: border-box; transition: 0.2s; }
         .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,67,156,0.1); }
         body.dark-mode .search-input { background: #0f172a; border-color: #334155; }
         
         .email-list-container { flex: 1; overflow-y: auto; position: relative; }
-        .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; display: flex; align-items: flex-start; gap: 10px; }
+        
+        /* تأثيرات الرسايل والـ Avatars */
+        .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s, transform 0.2s; display: flex; align-items: center; gap: 12px; animation: slideIn 0.4s ease-out forwards; opacity: 0; transform: translateY(10px); }
         .email-item:hover { background: #f8fafc; }
         .email-item.selected { background: #eff6ff; border-right: 4px solid var(--primary); }
-        .e-sender { font-weight: bold; font-size: 1rem; color: var(--text); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* أنيمشن ظهور الرسايل */
+        @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
+        /* تأخير أنيمشن العناصر عشان تنزل ورا بعض */
+        .email-item:nth-child(1) { animation-delay: 0.05s; } .email-item:nth-child(2) { animation-delay: 0.1s; } .email-item:nth-child(3) { animation-delay: 0.15s; } .email-item:nth-child(4) { animation-delay: 0.2s; } .email-item:nth-child(5) { animation-delay: 0.25s; }
+
+        /* ستايل الأفاتار (دائرة الحرف) */
+        .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .e-sender { font-weight: bold; font-size: 1rem; color: var(--text); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .e-subject { font-size: 0.9rem; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .e-date { font-size: 0.75rem; color: #94a3b8; margin-top: 8px; }
-        .star-icon { font-size: 1.2rem; cursor: pointer; color: #cbd5e1; transition: 0.2s; }
+        .e-date { font-size: 0.75rem; color: #94a3b8; margin-top: 5px; }
+        .star-icon { font-size: 1.4rem; cursor: pointer; color: #cbd5e1; transition: 0.2s; }
+        .star-icon:hover { transform: scale(1.2); }
         .star-icon.starred { color: var(--star); }
 
-        body.dark-mode .email-item:hover { background: #0f172a; }
-        body.dark-mode .email-item.selected { background: #0f172a; border-right: 4px solid var(--primary); }
+        body.dark-mode .email-item:hover { background: rgba(255,255,255,0.02); }
+        body.dark-mode .email-item.selected { background: rgba(0,0,0,0.2); }
         body.dark-mode .e-subject { color: #94a3b8; }
         body.dark-mode .star-icon:not(.starred) { color: #475569; }
 
         .pagination-bar { padding: 10px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--card); }
-        .page-btn { padding: 5px 15px; border: 1px solid var(--border); background: var(--bg); border-radius: 5px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; color: var(--text); }
+        .page-btn { padding: 5px 15px; border: 1px solid var(--border); background: var(--bg); border-radius: 5px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; color: var(--text); transition: 0.2s; }
+        .page-btn:hover:not(:disabled) { background: var(--primary); color: white; }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .email-reader { flex: 1; background: var(--card); display: flex; flex-direction: column; transition: background 0.3s; }
+        .email-reader { flex: 1; background: var(--card); display: flex; flex-direction: column; transition: background 0.3s; z-index: 1; }
         .reader-header { padding: 25px; border-bottom: 1px solid var(--border); background: #f8fafc; display: none; transition: background 0.3s; }
         body.dark-mode .reader-header { background: #0f172a; }
         
@@ -83,41 +111,52 @@
         
         .reader-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn-action { color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; transition: 0.2s; font-size: 0.9rem; }
-        .btn-reply { background: #10b981; } .btn-reply:hover { background: #059669; }
-        .btn-forward { background: #3b82f6; } .btn-forward:hover { background: #2563eb; }
-        .btn-print { background: #64748b; } .btn-print:hover { background: #475569; }
-        .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; }
+        .btn-reply { background: #10b981; } .btn-reply:hover { background: #059669; transform: translateY(-2px); }
+        .btn-forward { background: #3b82f6; } .btn-forward:hover { background: #2563eb; transform: translateY(-2px); }
+        .btn-print { background: #64748b; } .btn-print:hover { background: #475569; transform: translateY(-2px); }
+        .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; transform: translateY(-2px); }
         .btn-restore { background: #10b981; } .btn-restore:hover { background: #059669; }
 
-        .iframe-container { flex: 1; width: 100%; border: none; background: transparent; }
+        .iframe-container { flex: 1; width: 100%; border: none; background: transparent; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; text-align: center; padding: 20px;}
 
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;}
-        .modal-box { background: var(--card); width: 100%; max-width: 600px; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: background 0.3s; max-height: 90vh; overflow-y: auto; box-sizing: border-box;}
+        /* تأثيرات النوافذ المنبثقة الناعمة */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(5px); }
+        .modal-box { background: var(--card); width: 100%; max-width: 600px; padding: 25px; border-radius: 15px; box-shadow: 0 15px 30px rgba(0,0,0,0.3); transition: background 0.3s; max-height: 90vh; overflow-y: auto; box-sizing: border-box; transform: scale(0.9); opacity: 0; animation: popIn 0.3s forwards ease-out; }
+        @keyframes popIn { to { transform: scale(1); opacity: 1; } }
+        
         .modal-title { margin-top: 0; margin-bottom: 10px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
         
-        .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; outline: none; transition: 0.2s; background: var(--card); color: var(--text); }
+        .input-field { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; outline: none; transition: border-color 0.2s, box-shadow 0.2s; background: var(--card); color: var(--text); }
+        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,67,156,0.1); }
         body.dark-mode .input-field { background: var(--bg); border: 1px solid var(--border); }
         
         .editor-toolbar { display: flex; gap: 5px; padding: 10px; background: #f8fafc; border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; flex-wrap: wrap;}
         body.dark-mode .editor-toolbar { background: #1e293b; border-color: var(--border); }
-        .editor-btn { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 5px 10px; border-radius: 5px; color: var(--text); font-weight: bold; }
+        .editor-btn { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 5px 10px; border-radius: 5px; color: var(--text); font-weight: bold; transition: 0.2s; }
+        .editor-btn:hover { background: #e2e8f0; } body.dark-mode .editor-btn:hover { background: #334155; }
         .rich-textarea { height: 150px; border-radius: 0 0 8px 8px; overflow-y: auto; text-align: right; direction: rtl; }
 
         .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; flex-wrap: wrap; gap: 10px;}
         .attachment-area { display: flex; align-items: center; gap: 10px; }
-        .btn-attach { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; }
+        .btn-attach { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; transition: 0.2s; }
+        .btn-attach:hover { transform: scale(1.1); }
         .attachment-name { font-size: 0.8rem; color: #64748b; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .btn-cancel { background: #f1f5f9; color: #475569; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
-        .btn-send { background: var(--primary); color: white; border: none; padding: 10px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; }
+        .btn-cancel { background: #f1f5f9; color: #475569; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; transition: 0.2s; }
+        .btn-cancel:hover { background: #e2e8f0; }
+        .btn-send { background: linear-gradient(135deg, var(--primary), #3b82f6); color: white; border: none; padding: 10px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; box-shadow: 0 4px 10px rgba(0,67,156,0.3); transition: 0.3s; }
+        .btn-send:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,67,156,0.4); }
 
         .bulk-actions-bar { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--card); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; gap: 10px;}
         body.dark-mode .bulk-actions-bar { background: #1e293b; }
         
-        .toast-notification { position: fixed; bottom: -100px; right: 20px; background: var(--primary); color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: 0.3s; z-index: 9999; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .toast-notification { position: fixed; bottom: -100px; right: 20px; background: var(--primary); color: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); z-index: 9999; font-weight: bold; display: flex; align-items: center; gap: 10px; }
         .toast-notification.show { bottom: 20px; }
 
-        .contact-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); align-items: center; }
+        .contact-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); align-items: center; transition: 0.2s; }
+        .contact-item:hover { background: #f8fafc; } body.dark-mode .contact-item:hover { background: #0f172a; }
         .contact-name { font-weight: bold; } .contact-email { color: #64748b; font-size: 0.85rem; }
 
         /* ========= Media Queries للموبايل ========= */
@@ -133,7 +172,7 @@
             .email-list-wrapper { width: 100%; border-left: none; }
             .email-list-wrapper.hide-on-mobile { display: none; }
             
-            .email-reader { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; display: none; }
+            .email-reader { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; display: none; background: var(--card); }
             .email-reader.show-on-mobile { display: flex; }
             
             .mobile-back { display: block; }
@@ -144,12 +183,32 @@
             .contact-input-group { flex-direction: column; }
         }
 
-        /* ستايلات قسم الأمان 2FA */
+        /* ========= ستايلات قسم الأمان 2FA (Neon Effect) =========== */
+        .auth-container { flex: 1; padding: 30px; overflow-y: auto; background: transparent; transition: opacity 0.3s; animation: fadeIn 0.4s; }
         .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        .auth-card { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid var(--border); text-align: center; position: relative; }
-        .auth-code { font-size: 2.5rem; font-weight: bold; color: var(--primary); font-family: monospace; letter-spacing: 5px; margin: 15px 0; }
-        .timer-bar { height: 6px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 10px; }
-        .timer-progress { height: 100%; background: var(--primary); width: 100%; transition: width 1s linear; }
+        .auth-card { 
+            background: var(--card); padding: 25px 20px; border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); 
+            position: relative; text-align: center; transition: transform 0.3s; 
+        }
+        .auth-card:hover { transform: translateY(-5px); }
+        .auth-account { font-weight: 900; font-size: 1.2rem; color: var(--text); margin-bottom: 5px; }
+        
+        /* تلميع أرقام الـ 2FA */
+        .auth-code { 
+            font-size: 2.8rem; font-weight: 900; letter-spacing: 8px; 
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 15px rgba(0, 67, 156, 0.2); margin: 15px 0; font-family: monospace; 
+        }
+        body.dark-mode .auth-code { 
+            background: linear-gradient(90deg, #60a5fa, #a78bfa); -webkit-background-clip: text; 
+            text-shadow: 0 4px 15px rgba(96, 165, 250, 0.3); 
+        }
+        
+        .timer-bar { height: 6px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 15px; }
+        body.dark-mode .timer-bar { background: #334155; }
+        .timer-progress { height: 100%; width: 100%; transition: width 1s linear, background-color 0.5s, box-shadow 0.5s; }
     </style>
 </head>
 <body>
@@ -159,12 +218,13 @@
     <div class="sidebar">
         <div class="logo">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="var(--primary)"/>
+                <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="url(#paint0_linear)"/>
                 <path d="M16 12L23 5" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
                 <path d="M23 5H19" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
                 <path d="M23 5V9" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
+                <defs><linearGradient id="paint0_linear" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse"><stop stop-color="#00439c"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
             </svg>
-            <span style="font-family: sans-serif; font-weight: 900; letter-spacing: -1px; font-size: 1.3rem; color: var(--primary)">A2Z Mail</span>
+            <span style="font-family: sans-serif; font-weight: 900; letter-spacing: -1px; font-size: 1.4rem; background: linear-gradient(90deg, var(--primary), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">A2Z Mail</span>
         </div>
         <button class="btn-compose" onclick="openCompose()">✏️ إنشاء رسالة</button>
         <div class="menu-item active" id="tab-inbox" onclick="loadTab('inbox')">📥 البريد الوارد</div>
@@ -172,9 +232,9 @@
         <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
         <div class="menu-item" id="tab-trash" onclick="loadTab('trash')">🗑️ سلة المهملات</div>
         
-        <div class="menu-item" id="tab-auth" style="background:#fef3c7; color:#d97706" onclick="showAuthSection()">🔐 الأكواد (2FA)</div>
+        <div class="menu-item" id="tab-auth" style="background: rgba(245, 158, 11, 0.1); color: #d97706;" onclick="showAuthSection()">🔐 الأكواد (2FA)</div>
 
-        <hr style="border:0; border-top:1px solid var(--border); width:100%; margin:10px 0;">
+        <hr style="border:0; border-top:1px solid var(--border); width:100%; margin:15px 0;">
         <div class="menu-item" onclick="openContactsModal()">📒 جهات الاتصال</div>
         <div class="menu-item" onclick="window.location.href='profile.html'">⚙️ إعدادات الحساب</div>
         <div class="menu-item" id="btn-theme" onclick="toggleTheme()">🌙 الوضع الليلي</div>
@@ -194,13 +254,14 @@
         </div>
 
         <div class="workspace">
+            
             <div class="email-list-wrapper" id="list-wrapper">
                 <div class="search-container">
                     <input type="text" id="search-input" class="search-input" placeholder="🔍 ابحث في المرسل أو الموضوع..." oninput="filterEmails()">
                 </div>
                 
                 <div class="email-list-container" id="emails-list">
-                    <div style="padding: 40px; text-align: center; color: #64748b;">جاري تحميل الرسائل... ⏳</div>
+                    <div style="padding: 40px; text-align: center; color: #64748b;">جاري التحميل... ⏳</div>
                 </div>
 
                 <div class="pagination-bar">
@@ -212,9 +273,9 @@
 
             <div class="email-reader" id="reader-wrapper">
                 <div class="empty-state" id="empty-reader">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="80" height="80" style="opacity:0.5; color:var(--primary); margin-bottom:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    <h2>لم يتم تحديد رسالة</h2>
-                    <p>اختر رسالة من القائمة لقراءتها هنا</p>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="80" height="80" style="opacity:0.3; color:var(--primary); margin-bottom:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <h2 style="margin:0 0 10px 0;">لم يتم تحديد رسالة</h2>
+                    <p style="margin:0;">اختر رسالة من القائمة لقراءتها هنا</p>
                 </div>
 
                 <div class="reader-header" id="reader-header">
@@ -236,10 +297,13 @@
                 <iframe class="iframe-container" id="reader-frame" style="display:none;" name="reader-frame"></iframe>
             </div>
 
-            <div id="auth-section" style="display:none; flex:1; overflow-y:auto; padding:30px; background:var(--bg);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <h2 style="margin:0;">🔐 مدير الأكواد (2FA)</h2>
-                    <button class="btn-compose" style="width:auto; padding:8px 20px; margin-bottom:0;" onclick="document.getElementById('add-auth-modal').style.display='flex'">+ إضافة حساب</button>
+            <div id="auth-section" class="auth-container" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+                    <div>
+                        <h2 style="margin:0; font-size:1.8rem;">🔐 مدير الأكواد (2FA)</h2>
+                        <p style="margin:5px 0 0 0; color:#64748b; font-size:0.9rem;">أكواد سريعة وآمنة لحساباتك الخارجية.</p>
+                    </div>
+                    <button class="btn-compose" style="width:auto; padding:10px 20px; margin-bottom:0; box-shadow:none;" onclick="document.getElementById('add-auth-modal').style.display='flex'">+ إضافة حساب</button>
                 </div>
                 <div class="auth-grid" id="auth-grid"></div>
             </div>
@@ -250,16 +314,13 @@
     <div class="modal-overlay" id="compose-modal">
         <div class="modal-box">
             <h3 class="modal-title"><span id="compose-title">✏️ رسالة جديدة</span></h3>
-            
             <div class="contact-input-group" style="display:flex; gap:10px; margin-bottom:15px;">
                 <input type="email" id="compose-to" class="input-field" placeholder="إلى (الإيميل)" style="margin-bottom:0; flex:1;">
                 <select id="contact-selector" class="input-field" style="margin-bottom:0; width:auto; cursor:pointer;" onchange="selectContact()">
                     <option value="">+ جهات الاتصال</option>
                 </select>
             </div>
-            
             <input type="text" id="compose-subject" class="input-field" placeholder="الموضوع">
-            
             <div class="editor-toolbar">
                 <button class="editor-btn" onclick="execCmd('bold')"><b>B</b></button>
                 <button class="editor-btn" onclick="execCmd('italic')"><i>I</i></button>
@@ -267,7 +328,6 @@
                 <button class="editor-btn" onclick="insertLink()">🔗</button>
             </div>
             <div id="compose-body" class="input-field rich-textarea" contenteditable="true" placeholder="اكتب رسالتك هنا..."></div>
-            
             <div class="modal-actions">
                 <div class="attachment-area">
                     <input type="file" id="compose-attachment" style="display: none;" onchange="handleFileSelect(event)">
@@ -289,8 +349,7 @@
                 <input type="text" id="c-name" class="input-field" placeholder="الاسم" style="margin-bottom:0; flex:1;">
                 <input type="email" id="c-email" class="input-field" placeholder="الإيميل" style="margin-bottom:0; flex:2;">
             </div>
-            <button class="btn-compose" style="width:100%; margin-bottom:20px;" onclick="addContact()">➕ إضافة</button>
-            
+            <button class="btn-compose" style="width:100%; margin-bottom:20px; box-shadow:none;" onclick="addContact()">➕ إضافة</button>
             <div id="contacts-list" style="max-height: 200px; overflow-y: auto;"></div>
             <button class="btn-cancel" style="width:100%; margin-top:15px;" onclick="closeContactsModal()">إغلاق</button>
         </div>
@@ -299,8 +358,9 @@
     <div class="modal-overlay" id="add-auth-modal">
         <div class="modal-box" style="max-width: 400px;">
             <h3 class="modal-title">➕ إضافة مفتاح أمان</h3>
-            <div style="margin-bottom:15px;">
-                <input type="text" id="auth-acc-name" class="input-field" placeholder="اسم الموقع (مثال: فيسبوك)">
+            <p style="font-size:0.8rem; color:#64748b; margin-top:0;">ادخل الاسم والكود السري (Secret Key).</p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
+                <input type="text" id="auth-acc-name" class="input-field" placeholder="اسم الموقع (مثال: فيسبوك)" style="margin-bottom:0;">
                 <input type="text" id="auth-acc-key" class="input-field" placeholder="الكود السري (Secret Key)" style="margin-bottom:0;">
             </div>
             <div style="display:flex; gap:10px;">
@@ -339,7 +399,6 @@
             if (activeEmail) activeEmail.click();
         }
 
-        // دوال الموبايل
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('open');
             document.getElementById('sidebar-overlay').classList.toggle('show');
@@ -399,6 +458,7 @@
         let myContacts = JSON.parse(localStorage.getItem(`a2z_contacts_${userData.email_address}`)) || [];
         function refreshContactsSelect() {
             const sel = document.getElementById('contact-selector');
+            if(!sel) return;
             sel.innerHTML = '<option value="">+ جهات الاتصال</option>';
             myContacts.forEach(c => {
                 let opt = document.createElement('option');
@@ -475,7 +535,6 @@
             selectedEmailIds = []; 
             document.getElementById('search-input').value = '';
             
-            // إظهار الرسايل وإخفاء الأمان (بدون تغيير نوع العرض عشان ميبوظش الـ CSS)
             document.getElementById('list-wrapper').style.display = '';
             document.getElementById('reader-wrapper').style.display = '';
             document.getElementById('auth-section').style.display = 'none';
@@ -490,7 +549,6 @@
         }
 
         function showAuthSection() {
-            // إخفاء الرسايل وإظهار الأمان
             document.getElementById('list-wrapper').style.display = 'none';
             document.getElementById('reader-wrapper').style.display = 'none';
             document.getElementById('auth-section').style.display = 'block';
@@ -589,6 +647,14 @@
                 let displayPerson = currentTab === 'inbox' || currentTab === 'starred' ? email.sender.split('<')[0].replace(/"/g, '') : `إلى: ${email.recipient}`;
                 if(currentTab === 'trash') displayPerson = email.sender.split('<')[0].replace(/"/g, '');
                 
+                // --- استخراج حرف الأفاتار واللون ---
+                let cleanName = displayPerson.replace('إلى:', '').trim();
+                let firstLetter = cleanName ? cleanName.charAt(0).toUpperCase() : '?';
+                let colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+                let bgColor = colors[(cleanName.charCodeAt(0) || 0) % colors.length];
+                let avatarHTML = `<div class="avatar" style="background-color: ${bgColor};">${firstLetter}</div>`;
+                // ------------------------------------
+
                 let hasAttachment = email.body_text.includes('supabase.co/storage') ? ' 📎' : '';
                 let isChecked = selectedEmailIds.includes(email.id) ? 'checked' : '';
                 let starClass = email.is_starred ? 'starred' : '';
@@ -597,8 +663,11 @@
 
                 return `
                 <div class="email-item" onclick="openEmail(${index}, this)" id="item-${email.id}">
-                    <input type="checkbox" class="chk-email single-chk" value="${email.id}" onclick="toggleSingleCheck(event, '${email.id}')" ${isChecked}>
-                    ${starHTML}
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" class="chk-email single-chk" value="${email.id}" onclick="toggleSingleCheck(event, '${email.id}')" ${isChecked}>
+                        ${starHTML}
+                    </div>
+                    ${avatarHTML}
                     <div style="flex:1; overflow:hidden;">
                         <div class="e-sender">${displayPerson}${hasAttachment}</div>
                         <div class="e-subject">${email.subject || 'بدون عنوان'}</div>
@@ -662,7 +731,21 @@
             document.getElementById('reader-header').style.display = 'block';
             document.getElementById('reader-frame').style.display = 'block';
             document.getElementById('reader-subject').innerText = email.subject || 'بدون عنوان';
-            document.getElementById('reader-meta').innerHTML = `<strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> <strong>إلى:</strong> ${email.recipient} <br> <strong>التاريخ:</strong> ${new Date(email.created_at).toLocaleString('ar-EG')}`;
+            
+            // إضافة الأفاتار داخل القارئ نفسه 
+            let cleanName = (email.sender.split('<')[0].replace(/"/g, '')).trim();
+            let firstLetter = cleanName ? cleanName.charAt(0).toUpperCase() : '?';
+            let bgColor = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][(cleanName.charCodeAt(0) || 0) % 5];
+            
+            document.getElementById('reader-meta').innerHTML = `
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
+                    <div class="avatar" style="background-color: ${bgColor}; width:45px; height:45px; font-size:1.3rem;">${firstLetter}</div>
+                    <div>
+                        <strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> 
+                        <strong>إلى:</strong> ${email.recipient} <br> 
+                        <span style="color:#94a3b8; font-size:0.8rem;">${new Date(email.created_at).toLocaleString('ar-EG')}</span>
+                    </div>
+                </div>`;
             
             if (currentTab === 'trash') {
                 document.getElementById('normal-actions').style.display = 'none';
@@ -734,8 +817,7 @@
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
-        // ================== نظام الأمان (خوارزمية مدمجة بالكامل) ==================
-        // الدالة دي بتحول الكود السري (Secret Key) لـ 6 أرقام من غير الحاجة لأي مكتبة خارجية!
+        // ================== خوارزمية 2FA الذاتية (Neon Timer) ==================
         async function getTOTP(secretKey) {
             try {
                 secretKey = secretKey.replace(/\s+/g, '').toUpperCase();
@@ -747,9 +829,7 @@
                     bits += val.toString(2).padStart(5, '0');
                 }
                 const bytes = new Uint8Array(Math.floor(bits.length / 8));
-                for (let i = 0; i < bytes.length; i++) {
-                    bytes[i] = parseInt(bits.substr(i * 8, 8), 2);
-                }
+                for (let i = 0; i < bytes.length; i++) { bytes[i] = parseInt(bits.substr(i * 8, 8), 2); }
 
                 const time = Math.floor(Date.now() / 1000 / 30);
                 const buffer = new ArrayBuffer(8);
@@ -761,33 +841,23 @@
                 const hmac = new Uint8Array(signature);
 
                 const offset = hmac[19] & 0xf;
-                const code = (
-                    ((hmac[offset] & 0x7f) << 24) |
-                    ((hmac[offset + 1] & 0xff) << 16) |
-                    ((hmac[offset + 2] & 0xff) << 8) |
-                    (hmac[offset + 3] & 0xff)
-                ) % 1000000;
-
+                const code = (((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff)) % 1000000;
                 return code.toString().padStart(6, '0');
-            } catch (err) {
-                return "رمز غير صالح";
-            }
+            } catch (err) { return "رمز غير صالح"; }
         }
+
+        function openAddAuthModal() { document.getElementById('add-auth-modal').style.display = 'flex'; }
 
         async function saveAuthAccount() {
             const name = document.getElementById('auth-acc-name').value.trim();
             const key = document.getElementById('auth-acc-key').value.trim().replace(/\s/g, '');
             if(!name || !key) return alert('أدخل البيانات بشكل صحيح!');
 
-            const { error } = await myApp.from('a2z_2fa').insert([
-                { user_id: userData.id, account_name: name, secret_key: key }
-            ]);
-
+            const { error } = await myApp.from('a2z_2fa').insert([{ user_id: userData.id, account_name: name, secret_key: key }]);
             if(!error) {
                 alert('تمت الإضافة بنجاح! 🎉');
                 document.getElementById('add-auth-modal').style.display = 'none';
-                document.getElementById('auth-acc-name').value = '';
-                document.getElementById('auth-acc-key').value = '';
+                document.getElementById('auth-acc-name').value = ''; document.getElementById('auth-acc-key').value = '';
                 loadAuthAccounts();
             } else { alert('خطأ في الحفظ!'); }
         }
@@ -798,13 +868,12 @@
             const grid = document.getElementById('auth-grid');
             if(!data || data.length === 0) {
                 grid.innerHTML = '<p style="color:#64748b; font-weight:bold; grid-column: 1/-1;">لا يوجد حسابات مضافة حتى الآن.</p>';
-                if(authInterval) clearInterval(authInterval);
-                return;
+                if(authInterval) clearInterval(authInterval); return;
             }
 
             grid.innerHTML = data.map(acc => `
                 <div class="auth-card">
-                    <button onclick="deleteAuth('${acc.id}')" style="position:absolute; top:15px; left:15px; background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.2rem;">🗑️</button>
+                    <button onclick="deleteAuth('${acc.id}')" style="position:absolute; top:15px; left:15px; background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.2rem; transition:0.2s;">🗑️</button>
                     <div class="auth-account">${acc.account_name}</div>
                     <div class="auth-code" id="code-${acc.id}">------</div>
                     <div class="timer-bar"><div class="timer-progress" id="timer-${acc.id}"></div></div>
@@ -819,11 +888,22 @@
             
             async function update() {
                 const remains = 30 - (new Date().getSeconds() % 30);
+                const percentage = (remains / 30) * 100;
+                
+                // تأثير النيون: تغيير اللون على حسب الوقت
+                let barColor = 'var(--primary)';
+                if (remains <= 10) barColor = '#ef4444'; // أحمر
+                else if (remains <= 20) barColor = '#f59e0b'; // برتقالي
+
                 accounts.forEach(async acc => {
                     const codeEl = document.getElementById(`code-${acc.id}`);
                     const timerEl = document.getElementById(`timer-${acc.id}`);
                     if(codeEl) codeEl.innerText = await getTOTP(acc.secret_key);
-                    if(timerEl) timerEl.style.width = (remains / 30) * 100 + '%';
+                    if(timerEl) {
+                        timerEl.style.width = percentage + '%';
+                        timerEl.style.backgroundColor = barColor;
+                        timerEl.style.boxShadow = `0 0 10px ${barColor}`;
+                    }
                 });
             }
             
@@ -832,7 +912,7 @@
         }
 
         async function deleteAuth(id) {
-            if(confirm('متأكد من حذف الحساب؟')) { 
+            if(confirm('هل أنت متأكد من حذف هذا الحساب؟')) { 
                 await myApp.from('a2z_2fa').delete().eq('id', id); 
                 loadAuthAccounts(); 
             }
