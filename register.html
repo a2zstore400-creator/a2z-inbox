@@ -39,7 +39,6 @@
     </div>
 
     <script>
-        // ربط قاعدة البيانات الخاصة بك [cite: 2026-02-14]
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
@@ -52,7 +51,6 @@
 
             if(!user || !mailPart || !recovery || !pass) return alert('يا مدير، لازم تملا كل الخانات!');
             
-            // التأكد من شكل الإيميل [cite: 2026-02-14]
             const fullEmail = mailPart.includes('@') ? mailPart : `${mailPart}@a2z-mail.com`;
             const btn = document.getElementById('reg-btn');
             
@@ -60,17 +58,7 @@
             btn.disabled = true;
 
             try {
-                // 1. فحص لو الإيميل محجوز قبل كدة [cite: 2026-02-14]
-                const { data: exist } = await myApp.from('a2z_users').select('id').eq('email_address', fullEmail).maybeSingle();
-                
-                if(exist) {
-                    alert('الإيميل ده محجوز لغيرك، جرب اسم تاني!');
-                    btn.innerText = 'إنشاء الحساب 🚀';
-                    btn.disabled = false;
-                    return;
-                }
-
-                // 2. إدخال البيانات في الجدول [cite: 2026-02-14]
+                // محاولة إدخال البيانات في الجدول مباشرة
                 const { error } = await myApp.from('a2z_users').insert([{
                     username: user,
                     email_address: fullEmail,
@@ -80,11 +68,16 @@
                 }]);
 
                 if(!error) {
-                    alert('مبروك يا رمضان! الحساب اتعمل بنجاح ✅');
-                    window.location.href = 'login.html'; // يحوله لصفحة الدخول بعد التسجيل
+                    alert('مبروك يا مدير! الحساب اتعمل بنجاح ✅');
+                    window.location.href = 'login.html'; 
                 } else {
-                    console.error(error);
-                    alert('فيه مشكلة حصلت، اتأكد إنك فعلت الـ RLS في Supabase');
+                    // التعديل هنا: قراءة نوع الخطأ من الداتا بيز
+                    if (error.code === '23505' || error.message.includes('duplicate')) {
+                        alert('عفواً، هذا الاسم أو الإيميل مستخدم من قبل! جرب اسم مختلف.');
+                    } else {
+                        console.error(error);
+                        alert('حدث خطأ أثناء التسجيل: ' + error.message);
+                    }
                 }
             } catch (err) {
                 alert('حدث خطأ غير متوقع');
