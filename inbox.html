@@ -430,11 +430,15 @@
         let totalCount = 0;
 
         function setupRealtime() {
+            // التعديل هنا: شلنا الـ filter الصارم عشان الكود يقدر يستلم أي رسالة بحروف سمول أو كابيتال ويعالجها هنا
             myApp.channel('custom-all-channel')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emails', filter: `recipient=eq.${userData.email_address}` }, payload => {
-                playBeep();
-                showToast(`رسالة جديدة من: ${payload.new.sender.replace(/</g, '').replace(/>/g, '')}`);
-                if(currentTab === 'inbox') { fetchEmails(); }
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emails' }, payload => {
+                // التأكد من إن الرسالة الجديدة جاية لنفس الإيميل (مع تجاهل حالة الحروف)
+                if (payload.new.recipient && payload.new.recipient.toLowerCase() === userData.email_address.toLowerCase()) {
+                    playBeep();
+                    showToast(`رسالة جديدة من: ${payload.new.sender.replace(/</g, '').replace(/>/g, '')}`);
+                    if(currentTab === 'inbox') { fetchEmails(); }
+                }
             }).subscribe();
         }
         setupRealtime();
@@ -573,10 +577,11 @@
             try {
                 let query = myApp.from('emails').select('*', { count: 'exact' }).order('created_at', { ascending: false });
                 
-                if (currentTab === 'inbox') query = query.eq('recipient', userData.email_address).eq('is_trashed', false); 
+                // التعديل الرئيسي هنا: استخدام ilike بدل eq عشان يتجاهل الحروف الكابيتال والسمول
+                if (currentTab === 'inbox') query = query.ilike('recipient', userData.email_address).eq('is_trashed', false); 
                 else if (currentTab === 'sent') query = query.ilike('sender', `%${userData.email_address}%`).eq('is_trashed', false); 
-                else if (currentTab === 'trash') query = query.or(`recipient.eq.${userData.email_address},sender.ilike.%${userData.email_address}%`).eq('is_trashed', true);
-                else if (currentTab === 'starred') query = query.eq('recipient', userData.email_address).eq('is_trashed', false).eq('is_starred', true);
+                else if (currentTab === 'trash') query = query.or(`recipient.ilike.${userData.email_address},sender.ilike.%${userData.email_address}%`).eq('is_trashed', true);
+                else if (currentTab === 'starred') query = query.ilike('recipient', userData.email_address).eq('is_trashed', false).eq('is_starred', true);
 
                 query = query.range(from, to);
 
