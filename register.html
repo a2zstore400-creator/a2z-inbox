@@ -7,31 +7,89 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Cairo', sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .register-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; }
-        .logo { font-size: 2rem; font-weight: 900; color: #00439c; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 10px; font-family: 'Cairo'; box-sizing: border-box; }
-        .btn-register { width: 100%; padding: 15px; background: #00439c; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.3s; }
-        .btn-register:hover { background: #00337a; }
-        .hint { font-size: 0.8rem; color: #64748b; margin-top: -10px; margin-bottom: 15px; text-align: right; }
-        .login-link { margin-top: 20px; display: block; color: #00439c; text-decoration: none; font-weight: bold; }
+        :root { --primary: #00439c; --bg-gradient: linear-gradient(135deg, #f4f6f8 0%, #e2e8f0 100%); }
+        
+        body { 
+            font-family: 'Cairo', sans-serif; background: var(--bg-gradient); 
+            display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; 
+        }
+        
+        /* تأثير الزجاج الفخم (Glassmorphism) */
+        .register-card { 
+            background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 40px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; 
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .logo { font-size: 2.2rem; font-weight: 900; background: linear-gradient(90deg, var(--primary), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .title-text { color: #0f172a; margin-top: 0; margin-bottom: 25px; font-size: 1.4rem; }
+        
+        .input-group { position: relative; margin-bottom: 15px; }
+        input { 
+            width: 100%; padding: 14px 15px; border: 1px solid rgba(226, 232, 240, 0.8); 
+            border-radius: 12px; font-family: 'Cairo'; box-sizing: border-box; 
+            background: rgba(255, 255, 255, 0.9); font-size: 1rem; transition: 0.3s;
+            outline: none;
+        }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0, 67, 156, 0.1); background: #ffffff; }
+        
+        .hint { font-size: 0.8rem; color: #64748b; margin-top: -10px; margin-bottom: 15px; text-align: right; padding-right: 5px; }
+        
+        /* علامة العين للباسورد */
+        .eye-icon { position: absolute; left: 15px; top: 14px; cursor: pointer; font-size: 1.2rem; user-select: none; opacity: 0.6; transition: 0.2s; }
+        .eye-icon:hover { opacity: 1; }
+
+        /* مؤشر قوة الباسورد */
+        .strength-meter { display: flex; gap: 5px; margin-top: -10px; margin-bottom: 15px; height: 5px; padding: 0 5px; }
+        .strength-bar { flex: 1; background: #e2e8f0; border-radius: 5px; transition: 0.3s; }
+        .strength-text { font-size: 0.75rem; text-align: right; margin-top: 5px; display: block; color: #64748b; }
+
+        .btn-register { 
+            width: 100%; padding: 15px; background: linear-gradient(135deg, var(--primary), #3b82f6); 
+            color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; 
+            font-size: 1.1rem; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,67,156,0.3); font-family: 'Cairo';
+        }
+        .btn-register:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,67,156,0.4); }
+        .btn-register:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .login-link { margin-top: 20px; display: inline-block; color: var(--primary); text-decoration: none; font-weight: bold; transition: 0.2s; }
+        .login-link:hover { color: #3b82f6; text-decoration: underline; }
     </style>
 </head>
 <body>
 
     <div class="register-card">
         <div class="logo">A2Z Mail</div>
-        <h2>إنشاء حساب جديد ✨</h2>
+        <h2 class="title-text">إنشاء حساب جديد ✨</h2>
         
-        <input type="text" id="reg-username" placeholder="اسم المستخدم (مثلاً: رمضان)">
+        <div class="input-group">
+            <input type="text" id="reg-username" placeholder="اسم المستخدم (مثلاً: رمضان)">
+        </div>
         
-        <input type="text" id="reg-email" placeholder="اسم البريد المطلوب (مثلاً: ramadan)">
+        <div class="input-group">
+            <input type="text" id="reg-email" placeholder="اسم البريد المطلوب (مثلاً: ramadan)">
+        </div>
         <div class="hint">بريدك سيكون: example@a2z-mail.com</div>
 
-        <input type="email" id="reg-recovery" placeholder="بريد الاسترداد (Yahoo, Gmail, Outlook)">
-        <div class="hint" style="color:#00439c">مهم جداً لاسترجاع حسابك لو نسيت الباسورد</div>
+        <div class="input-group">
+            <input type="email" id="reg-recovery" placeholder="بريد الاسترداد (Yahoo, Gmail, Outlook)">
+        </div>
+        <div class="hint" style="color:var(--primary); font-weight:bold;">مهم جداً لاسترجاع حسابك لو نسيت الباسورد</div>
 
-        <input type="password" id="reg-password" placeholder="كلمة المرور">
+        <div class="input-group">
+            <input type="password" id="reg-password" placeholder="كلمة المرور" oninput="checkPasswordStrength()">
+            <span class="eye-icon" onclick="togglePassword()">👁️</span>
+        </div>
+        
+        <div class="strength-meter" id="strength-meter">
+            <div class="strength-bar" id="bar-1"></div>
+            <div class="strength-bar" id="bar-2"></div>
+            <div class="strength-bar" id="bar-3"></div>
+        </div>
+        <span class="strength-text" id="strength-text">اكتب كلمة مرور قوية</span>
         
         <button class="btn-register" onclick="handleRegister()" id="reg-btn">إنشاء الحساب 🚀</button>
         
@@ -43,37 +101,79 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
+        function togglePassword() {
+            const passInput = document.getElementById('reg-password');
+            const icon = document.querySelector('.eye-icon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text'; icon.innerText = '🙈';
+            } else {
+                passInput.type = 'password'; icon.innerText = '👁️';
+            }
+        }
+
+        function checkPasswordStrength() {
+            const pass = document.getElementById('reg-password').value;
+            const bar1 = document.getElementById('bar-1');
+            const bar2 = document.getElementById('bar-2');
+            const bar3 = document.getElementById('bar-3');
+            const text = document.getElementById('strength-text');
+
+            bar1.style.background = '#e2e8f0'; bar2.style.background = '#e2e8f0'; bar3.style.background = '#e2e8f0';
+
+            let strength = 0;
+            if(pass.length >= 6) strength++;
+            if(pass.length >= 8 && /[0-9]/.test(pass) && /[a-zA-Z]/.test(pass)) strength++;
+            if(pass.length >= 10 && /[A-Z]/.test(pass) && /[^A-Za-z0-9]/.test(pass)) strength++;
+
+            if(pass.length === 0) { text.innerText = "اكتب كلمة مرور قوية"; text.style.color = "#64748b"; return; }
+
+            if(strength === 1) { bar1.style.background = '#ef4444'; text.innerText = "ضعيفة جداً ⚠️"; text.style.color = "#ef4444"; } 
+            else if(strength === 2) { bar1.style.background = '#f59e0b'; bar2.style.background = '#f59e0b'; text.innerText = "متوسطة الحماية 👍"; text.style.color = "#f59e0b"; } 
+            else if(strength >= 3) { bar1.style.background = '#10b981'; bar2.style.background = '#10b981'; bar3.style.background = '#10b981'; text.innerText = "قوية وممتازة 🛡️"; text.style.color = "#10b981"; }
+        }
+
+        // دالة التشفير عشان الأمان
+        async function hashPassword(password) {
+            const msgUint8 = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
         async function handleRegister() {
             const user = document.getElementById('reg-username').value.trim();
-            const mailPart = document.getElementById('reg-email').value.trim();
+            // تحويل الإيميل لحروف صغيرة أوتوماتيك عشان نتجنب مشكلة الكابيتال والسمول
+            const mailPart = document.getElementById('reg-email').value.trim().toLowerCase();
             const recovery = document.getElementById('reg-recovery').value.trim();
-            const pass = document.getElementById('reg-password').value.trim();
+            const plainPass = document.getElementById('reg-password').value.trim();
 
-            if(!user || !mailPart || !recovery || !pass) return alert('يا مدير، لازم تملا كل الخانات!');
+            if(!user || !mailPart || !recovery || !plainPass) return alert('يا مدير، لازم تملا كل الخانات!');
+            if(plainPass.length < 6) return alert('كلمة المرور لازم تكون 6 أحرف على الأقل!');
             
             const fullEmail = mailPart.includes('@') ? mailPart : `${mailPart}@a2z-mail.com`;
             const btn = document.getElementById('reg-btn');
             
-            btn.innerText = 'جاري الإنشاء...';
+            btn.innerText = 'جاري الإنشاء... ⏳';
             btn.disabled = true;
 
             try {
-                // محاولة إدخال البيانات في الجدول مباشرة
+                const hashedPassword = await hashPassword(plainPass);
+
                 const { error } = await myApp.from('a2z_users').insert([{
                     username: user,
                     email_address: fullEmail,
                     recovery_email: recovery, 
-                    password: pass,
+                    password: hashedPassword,
                     status: 'active'
                 }]);
 
                 if(!error) {
-                    alert('مبروك يا مدير! الحساب اتعمل بنجاح ✅');
+                    alert('مبروك! الحساب اتعمل بنجاح وبأمان تام ✅');
                     window.location.href = 'login.html'; 
                 } else {
-                    // التعديل هنا: قراءة نوع الخطأ من الداتا بيز
+                    // التعديل هنا: الرسالة بتنبه على الإيميل بس
                     if (error.code === '23505' || error.message.includes('duplicate')) {
-                        alert('عفواً، هذا الاسم أو الإيميل مستخدم من قبل! جرب اسم مختلف.');
+                        alert('عفواً، هذا الإيميل محجوز من قبل! جرب إيميل مختلف.');
                     } else {
                         console.error(error);
                         alert('حدث خطأ أثناء التسجيل: ' + error.message);
