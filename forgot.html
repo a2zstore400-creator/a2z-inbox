@@ -2,33 +2,88 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A2Z Mail | استعادة كلمة المرور</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Cairo', sans-serif; background: #f1f5f9; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; font-family: 'Cairo'; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #00439c; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .back-link { display: block; margin-top: 15px; color: #64748b; text-decoration: none; font-size: 0.9rem; }
+        :root { --primary: #00439c; --bg-gradient: linear-gradient(135deg, #f4f6f8 0%, #e2e8f0 100%); }
+        
+        body { 
+            font-family: 'Cairo', sans-serif; background: var(--bg-gradient); 
+            display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; 
+        }
+        
+        /* تأثير الزجاج الفخم (Glassmorphism) */
+        .card { 
+            background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 40px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05); width: 100%; max-width: 420px; text-align: center; 
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .logo { font-size: 2.2rem; font-weight: 900; background: linear-gradient(90deg, var(--primary), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
+        h2 { color: #0f172a; margin-top: 0; margin-bottom: 10px; font-size: 1.5rem; }
+        p { color: #64748b; font-size: 0.95rem; margin-bottom: 25px; line-height: 1.6; }
+        
+        .input-group { position: relative; margin-bottom: 15px; }
+        input { 
+            width: 100%; padding: 14px 15px; border: 1px solid rgba(226, 232, 240, 0.8); 
+            border-radius: 12px; font-family: 'Cairo'; box-sizing: border-box; 
+            background: rgba(255, 255, 255, 0.9); font-size: 1rem; transition: 0.3s;
+            outline: none;
+        }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0, 67, 156, 0.1); background: #ffffff; }
+        
+        /* علامة العين للباسورد */
+        .eye-icon { position: absolute; left: 15px; top: 14px; cursor: pointer; font-size: 1.2rem; user-select: none; opacity: 0.6; transition: 0.2s; }
+        .eye-icon:hover { opacity: 1; }
+
+        button { 
+            width: 100%; padding: 15px; background: linear-gradient(135deg, var(--primary), #3b82f6); 
+            color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; 
+            font-size: 1.1rem; transition: 0.3s; box-shadow: 0 4px 10px rgba(0,67,156,0.3); font-family: 'Cairo'; margin-top: 10px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,67,156,0.4); }
+        button:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .back-link { display: inline-block; margin-top: 20px; color: var(--primary); text-decoration: none; font-weight: bold; transition: 0.2s; font-size: 0.95rem; }
+        .back-link:hover { color: #3b82f6; text-decoration: underline; }
     </style>
 </head>
 <body>
 
     <div class="card" id="step-1">
-        <h2>🔑 نسيت كلمة المرور؟</h2>
+        <div class="logo">A2Z Mail</div>
+        <h2>🔑 استعادة كلمة المرور</h2>
         <p>اكتب بريدك في A2Z Mail عشان نبعتلك كود التحقق على إيميل الاسترداد.</p>
-        <input type="text" id="email-input" placeholder="example@a2z-mail.com">
-        <button onclick="checkUser()">إرسال الكود 🚀</button>
+        
+        <div class="input-group">
+            <input type="text" id="email-input" placeholder="البريد الإلكتروني (مثلاً: ramadan)">
+        </div>
+        
+        <button onclick="checkUser()" id="btn-step1">إرسال الكود 🚀</button>
         <a href="login.html" class="back-link">رجوع لتسجيل الدخول</a>
     </div>
 
     <div class="card" id="step-2" style="display: none;">
+        <div class="logo">A2Z Mail</div>
         <h2>📩 تحقق من بريدك</h2>
         <p>بعتنا كود سري لإيميل الاسترداد المربوط بحسابك.</p>
-        <input type="text" id="code-input" placeholder="أدخل الكود المكون من 6 أرقام">
-        <input type="password" id="new-password" placeholder="كلمة المرور الجديدة">
-        <button onclick="updatePassword()">تحديث كلمة المرور ✅</button>
+        
+        <div class="input-group">
+            <input type="text" id="code-input" placeholder="أدخل الكود (6 أرقام)">
+        </div>
+        
+        <div class="input-group">
+            <input type="password" id="new-password" placeholder="كلمة المرور الجديدة">
+            <span class="eye-icon" onclick="togglePassword()">👁️</span>
+        </div>
+        
+        <button onclick="updatePassword()" id="btn-step2">تحديث كلمة المرور ✅</button>
+        <a href="login.html" class="back-link">إلغاء والرجوع</a>
     </div>
 
     <script>
@@ -36,52 +91,102 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
-        let correctCode = ""; // الكود اللي السيستم هيولده
+        let correctCode = ""; 
         let targetUserEmail = ""; 
 
+        // إظهار وإخفاء الباسورد
+        function togglePassword() {
+            const passInput = document.getElementById('new-password');
+            const icon = document.querySelector('.eye-icon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text'; icon.innerText = '🙈';
+            } else {
+                passInput.type = 'password'; icon.innerText = '👁️';
+            }
+        }
+
+        // دالة التشفير عشان الأمان 
+        async function hashPassword(password) {
+            const msgUint8 = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
         async function checkUser() {
-            const email = document.getElementById('email-input').value;
-            if(!email) return alert("اكتب الإيميل الأول!");
+            let emailPart = document.getElementById('email-input').value.trim().toLowerCase();
+            if(!emailPart) return alert("اكتب الإيميل الأول!");
+            
+            const fullEmail = emailPart.includes('@') ? emailPart : `${emailPart}@a2z-mail.com`;
+            const btn = document.getElementById('btn-step1');
+            
+            btn.innerText = 'جاري البحث... ⏳';
+            btn.disabled = true;
 
-            // فحص وجود المستخدم وسحب إيميل الاسترداد [cite: 2026-02-13]
-            const { data, error } = await myApp.from('a2z_users').select('recovery_email, email_address').eq('email_address', email).single();
+            try {
+                // استخدام ilike لتجاهل حالة الحروف (كابيتال أو سمول)
+                const { data, error } = await myApp.from('a2z_users').select('recovery_email, email_address').ilike('email_address', fullEmail).maybeSingle();
 
-            if (data) {
-                targetUserEmail = data.email_address;
-                // توليد كود عشوائي من 6 أرقام
-                correctCode = Math.floor(100000 + Math.random() * 900000).toString();
+                if (data) {
+                    targetUserEmail = data.email_address;
+                    correctCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-                // إرسال الكود باستخدام الـ Worker اللي عملناه [cite: 2026-02-14]
-                try {
-                    await fetch("https://late-butterfly-bd1a.a2z-store400.workers.dev", {
+                    const response = await fetch("https://late-butterfly-bd1a.a2z-store400.workers.dev", {
                         method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            from: "A2Z Security <security@a2z-mail.com>",
+                            from: "A2Z Security <admin@a2z-mail.com>",
                             to: data.recovery_email, 
                             subject: "كود استعادة حسابك في A2Z Mail",
-                            html: `<div dir="rtl"><h2>كود التحقق الخاص بك هو: <span style="color:#00439c">${correctCode}</span></h2><p>لو مكنتش إنت اللي طلبت الكود، تجاهل الرسالة دي.</p></div>`
+                            html: `<div dir="rtl"><h2>مرحباً،</h2><p>طلب استعادة كلمة مرور لحسابك (${targetUserEmail}).</p><h3>كود التحقق الخاص بك هو: <span style="color:#00439c; letter-spacing: 2px; font-family: monospace;">${correctCode}</span></h3><p>لو مكنتش إنت اللي طلبت الكود، يرجى تجاهل الرسالة دي.</p></div>`
                         })
                     });
-                    
-                    document.getElementById('step-1').style.display = 'none';
-                    document.getElementById('step-2').style.display = 'block';
-                } catch(e) {
-                    alert("حصل مشكلة في إرسال الكود، حاول تاني.");
+
+                    if(response.ok) {
+                        document.getElementById('step-1').style.display = 'none';
+                        document.getElementById('step-2').style.display = 'block';
+                    } else {
+                        alert("حصل مشكلة في إرسال الكود، السيرفر مشغول، حاول تاني.");
+                    }
+                } else {
+                    alert("الإيميل ده مش مسجل عندنا، اتأكد من الكتابة صح.");
                 }
-            } else {
-                alert("الإيميل ده مش موجود عندنا، اتأكد من الكتابة صح.");
+            } catch(e) {
+                alert("حصل خطأ في الاتصال بقاعدة البيانات.");
+            } finally {
+                btn.innerText = 'إرسال الكود 🚀';
+                btn.disabled = false;
             }
         }
 
         async function updatePassword() {
-            const userCode = document.getElementById('code-input').value;
-            const newPass = document.getElementById('new-password').value;
+            const userCode = document.getElementById('code-input').value.trim();
+            const newPass = document.getElementById('new-password').value.trim();
+            const btn = document.getElementById('btn-step2');
+
+            if(!userCode || !newPass) return alert("اكتب الكود والباسورد الجديد!");
+            if(newPass.length < 6) return alert("كلمة المرور لازم تكون 6 أحرف على الأقل.");
 
             if (userCode === correctCode) {
-                const { error } = await myApp.from('a2z_users').update({ password: newPass }).eq('email_address', targetUserEmail);
-                if (!error) {
-                    alert("تم تغيير كلمة المرور بنجاح! 🎉 تقدر تسجل دخول دلوقتي.");
-                    window.location.href = 'login.html';
+                btn.innerText = 'جاري التحديث... ⏳';
+                btn.disabled = true;
+
+                try {
+                    // تشفير الباسورد الجديد قبل حفظه عشان يفضل محمي
+                    const hashedPassword = await hashPassword(newPass);
+
+                    const { error } = await myApp.from('a2z_users').update({ password: hashedPassword }).eq('email_address', targetUserEmail);
+                    if (!error) {
+                        alert("تم تغيير كلمة المرور بنجاح! 🎉 تقدر تسجل دخول دلوقتي.");
+                        window.location.href = 'login.html';
+                    } else {
+                        alert("حصل خطأ أثناء التحديث.");
+                    }
+                } catch (e) {
+                    alert("خطأ في الاتصال.");
+                } finally {
+                    btn.innerText = 'تحديث كلمة المرور ✅';
+                    btn.disabled = false;
                 }
             } else {
                 alert("الكود اللي دخلته غلط!");
