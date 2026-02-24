@@ -7,30 +7,62 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: #e2e8f0; }
-        body.dark-mode { --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --border: #334155; --primary: #60a5fa; }
+        :root { --primary: #00439c; --bg-gradient: linear-gradient(135deg, #f4f6f8 0%, #e2e8f0 100%); --text: #0f172a; --border: rgba(226, 232, 240, 0.8); }
+        body.dark-mode { --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); --text: #f1f5f9; --border: rgba(51, 65, 85, 0.8); --primary: #60a5fa; }
         
-        body { font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px 20px; transition: 0.3s; }
-        .container { max-width: 600px; margin: 0 auto; background: var(--card); padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); transition: 0.3s; }
+        body { font-family: 'Cairo', sans-serif; background: var(--bg-gradient); color: var(--text); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; transition: background 0.3s, color 0.3s; padding: 20px;}
         
-        h2 { margin-top: 0; color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 10px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; font-weight: bold; margin-bottom: 8px; color: var(--text); }
+        /* تأثير الزجاج الفخم (Glassmorphism) */
+        .container { 
+            background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 40px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05); width: 100%; max-width: 550px; 
+            animation: fadeIn 0.5s ease-out forwards; position: relative;
+        }
+        body.dark-mode .container { background: rgba(30, 41, 59, 0.65); border-color: rgba(255,255,255,0.05); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; background: var(--card); color: var(--text); outline: none; transition: 0.2s; }
-        input:focus { border-color: var(--primary); }
-        body.dark-mode input { background: var(--bg); }
-        input:disabled { opacity: 0.6; cursor: not-allowed; }
+        h2 { margin-top: 0; color: var(--text); padding-bottom: 15px; font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
+        .form-group { margin-bottom: 20px; position: relative; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: var(--text); font-size: 0.95rem; }
         
-        .btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: bold; font-size: 1.1rem; width: 100%; transition: 0.2s; margin-top: 10px; }
-        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
-        .btn-back { background: #64748b; margin-bottom: 20px; width: auto; display: inline-block; text-decoration: none; padding: 8px 15px; font-size: 0.9rem; }
+        input { 
+            width: 100%; padding: 14px 15px; border: 1px solid var(--border); 
+            border-radius: 12px; font-family: 'Cairo'; font-size: 1rem; box-sizing: border-box; 
+            background: rgba(255, 255, 255, 0.9); color: var(--text); outline: none; transition: 0.3s; 
+        }
+        body.dark-mode input { background: rgba(15, 23, 42, 0.6); }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0, 67, 156, 0.1); }
+        input:disabled { opacity: 0.6; cursor: not-allowed; background: #e2e8f0; }
+        body.dark-mode input:disabled { background: #334155; color: #94a3b8; }
+        
+        /* علامة العين للباسورد */
+        .eye-icon { position: absolute; left: 15px; top: 44px; cursor: pointer; font-size: 1.2rem; user-select: none; opacity: 0.6; transition: 0.2s; z-index: 2;}
+        .eye-icon:hover { opacity: 1; }
+
+        .btn { 
+            background: linear-gradient(135deg, var(--primary), #3b82f6); color: white; border: none; 
+            padding: 15px 20px; border-radius: 12px; cursor: pointer; font-family: 'Cairo'; 
+            font-weight: bold; font-size: 1.1rem; width: 100%; transition: 0.3s; margin-top: 15px; 
+            box-shadow: 0 4px 10px rgba(0,67,156,0.3);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,67,156,0.4); }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .btn-back { 
+            background: transparent; color: var(--primary); margin-bottom: 25px; width: auto; 
+            display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: bold; 
+            font-size: 1rem; transition: 0.2s; padding: 0; box-shadow: none;
+        }
+        .btn-back:hover { color: #3b82f6; transform: translateX(5px); box-shadow: none;}
+        body.dark-mode .btn-back { color: #93c5fd; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <a href="inbox.html" class="btn btn-back">⬅️ الرجوع للصندوق</a>
+        <a href="inbox.html" class="btn-back"><span>⬅️</span> الرجوع للصندوق</a>
         <h2>⚙️ إعدادات الحساب</h2>
 
         <div class="form-group">
@@ -43,16 +75,17 @@
             <input type="text" id="prof-email" disabled dir="ltr" style="text-align: right;">
         </div>
 
-        <hr style="border:0; border-top: 1px solid var(--border); margin: 25px 0;">
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 30px 0;">
 
         <div class="form-group">
             <label>إيميل الاسترداد 📩</label>
-            <input type="email" id="prof-recovery" placeholder="إيميلك في Gmail أو Yahoo لاسترجاع الحساب...">
+            <input type="email" id="prof-recovery" placeholder="إيميلك لاسترجاع الحساب...">
         </div>
 
         <div class="form-group">
             <label>تغيير كلمة المرور 🔑</label>
-            <input type="password" id="prof-password" placeholder="اكتب كلمة المرور الجديدة (أو اتركها فارغة إذا لم ترد التغيير)">
+            <input type="password" id="prof-password" placeholder="اتركها فارغة إذا لم ترد التغيير">
+            <span class="eye-icon" onclick="togglePassword()">👁️</span>
         </div>
 
         <button class="btn" onclick="saveProfile()" id="save-btn">حفظ التعديلات 💾</button>
@@ -76,6 +109,25 @@
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
 
+        // إظهار وإخفاء الباسورد
+        function togglePassword() {
+            const passInput = document.getElementById('prof-password');
+            const icon = document.querySelector('.eye-icon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text'; icon.innerText = '🙈';
+            } else {
+                passInput.type = 'password'; icon.innerText = '👁️';
+            }
+        }
+
+        // دالة التشفير عشان الأمان 
+        async function hashPassword(password) {
+            const msgUint8 = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
         async function saveProfile() {
             const newRecovery = document.getElementById('prof-recovery').value.trim();
             const newPassword = document.getElementById('prof-password').value.trim();
@@ -87,8 +139,16 @@
             btn.disabled = true;
 
             let updates = { recovery_email: newRecovery };
+            
+            // لو كتب باسورد جديد، نشفره الأول قبل ما نجهزه للحفظ
             if (newPassword) {
-                updates.password = newPassword; // هيتحدث بس لو كتب باسورد جديد
+                if(newPassword.length < 6) {
+                    alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل.');
+                    btn.innerText = 'حفظ التعديلات 💾';
+                    btn.disabled = false;
+                    return;
+                }
+                updates.password = await hashPassword(newPassword);
             }
 
             try {
@@ -98,7 +158,7 @@
                     alert('تم تحديث بياناتك بنجاح! ✅');
                     // تحديث اللوكال ستورج عشان السيستم يفضل فاكر البيانات الجديدة
                     userData.recovery_email = newRecovery;
-                    if (newPassword) userData.password = newPassword;
+                    if (newPassword) userData.password = updates.password; // بنحفظ النسخة المشفرة في اللوكال ستورج
                     localStorage.setItem('a2z_user', JSON.stringify(userData));
                     
                     document.getElementById('prof-password').value = ''; 
