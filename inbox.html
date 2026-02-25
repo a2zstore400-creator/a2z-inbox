@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A2Z Mail | صندوق الوارد</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00439c">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,6 +373,16 @@
     <div id="live-toast" class="toast-notification">🔔 رسالة جديدة!</div>
 
     <script>
+        // ==================== PWA Service Worker Registration ====================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => console.log('Service Worker registered.'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+        // =========================================================================
+
         const userData = JSON.parse(localStorage.getItem('a2z_user'));
         if (!userData) { window.location.href = 'index.html'; }
 
@@ -810,35 +825,6 @@
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
-        // ================== نظام 2FA الذاتي + قارئ الباركود ==================
-        async function getTOTP(secretKey) {
-            try {
-                secretKey = secretKey.replace(/\s+/g, '').toUpperCase();
-                const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-                let bits = '';
-                for (let i = 0; i < secretKey.length; i++) {
-                    const val = base32chars.indexOf(secretKey.charAt(i));
-                    if (val === -1) continue; 
-                    bits += val.toString(2).padStart(5, '0');
-                }
-                const bytes = new Uint8Array(Math.floor(bits.length / 8));
-                for (let i = 0; i < bytes.length; i++) { bytes[i] = parseInt(bits.substr(i * 8, 8), 2); }
-
-                const time = Math.floor(Date.now() / 1000 / 30);
-                const buffer = new ArrayBuffer(8);
-                const view = new DataView(buffer);
-                view.setUint32(4, time, false);
-
-                const key = await crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
-                const signature = await crypto.subtle.sign("HMAC", key, buffer);
-                const hmac = new Uint8Array(signature);
-
-                const offset = hmac[19] & 0xf;
-                const code = (((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff)) % 1000000;
-                return code.toString().padStart(6, '0');
-            } catch (err) { return "رمز غير صالح"; }
-        }
-
         let html5QrcodeScanner;
 
         function startQRScanner() {
@@ -850,7 +836,6 @@
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 (decodedText, decodedResult) => {
-                    // إغلاق الكاميرا بعد القراءة الناجحة
                     html5QrcodeScanner.stop().then(() => {
                         document.getElementById('qr-reader').style.display = 'none';
                         document.getElementById('btn-scan-qr').style.display = 'block';
@@ -878,7 +863,6 @@
                     }
                 },
                 (errorMessage) => {
-                    // تجاهل الأخطاء أثناء محاولة القراءة المستمرة
                 }
             ).catch((err) => {
                 alert('عذراً، يجب السماح باستخدام الكاميرا أو لا توجد كاميرا مدعومة.');
@@ -932,6 +916,34 @@
             startAuthUpdates(data);
         }
 
+        async function getTOTP(secretKey) {
+            try {
+                secretKey = secretKey.replace(/\s+/g, '').toUpperCase();
+                const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+                let bits = '';
+                for (let i = 0; i < secretKey.length; i++) {
+                    const val = base32chars.indexOf(secretKey.charAt(i));
+                    if (val === -1) continue; 
+                    bits += val.toString(2).padStart(5, '0');
+                }
+                const bytes = new Uint8Array(Math.floor(bits.length / 8));
+                for (let i = 0; i < bytes.length; i++) { bytes[i] = parseInt(bits.substr(i * 8, 8), 2); }
+
+                const time = Math.floor(Date.now() / 1000 / 30);
+                const buffer = new ArrayBuffer(8);
+                const view = new DataView(buffer);
+                view.setUint32(4, time, false);
+
+                const key = await crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+                const signature = await crypto.subtle.sign("HMAC", key, buffer);
+                const hmac = new Uint8Array(signature);
+
+                const offset = hmac[19] & 0xf;
+                const code = (((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff)) % 1000000;
+                return code.toString().padStart(6, '0');
+            } catch (err) { return "رمز غير صالح"; }
+        }
+
         function startAuthUpdates(accounts) {
             if(authInterval) clearInterval(authInterval);
             
@@ -940,8 +952,8 @@
                 const percentage = (remains / 30) * 100;
                 
                 let barColor = 'var(--primary)';
-                if (remains <= 10) barColor = '#ef4444'; // أحمر
-                else if (remains <= 20) barColor = '#f59e0b'; // برتقالي
+                if (remains <= 10) barColor = '#ef4444'; 
+                else if (remains <= 20) barColor = '#f59e0b'; 
 
                 accounts.forEach(async acc => {
                     const codeEl = document.getElementById(`code-${acc.id}`);
@@ -965,7 +977,6 @@
                 loadAuthAccounts(); 
             }
         }
-        // ========================================================
 
         function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
         window.onload = fetchEmails;
