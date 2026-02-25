@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A2Z Mail | صندوق الوارد</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: rgba(226, 232, 240, 0.8); --star: #eab308; }
@@ -15,20 +16,17 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         body.dark-mode ::-webkit-scrollbar-thumb { background: #475569; }
 
-        /* خلفية فيها تدرج لوني خفيف عشان يظهر تأثير الزجاج */
         body { 
             font-family: 'Cairo', sans-serif; color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; 
             background: linear-gradient(135deg, #f4f6f8 0%, #e2e8f0 100%); transition: background 0.3s, color 0.3s; 
         }
         body.dark-mode { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
 
-        /* ستايل الموبايل الجديد والقائمة */
         .mobile-toggle { display: none; background: transparent; border: none; font-size: 1.8rem; cursor: pointer; color: var(--primary); padding: 0; }
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9; backdrop-filter: blur(3px); }
         .mobile-back { display: none; background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 8px; font-family: 'Cairo'; font-weight: bold; cursor: pointer; margin-bottom: 15px; font-size: 0.9rem; }
         body.dark-mode .mobile-back { background: #334155; color: #cbd5e1; }
 
-        /* تأثير الزجاج (Glassmorphism) للقائمة الجانبية */
         .sidebar { 
             width: 250px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
             border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; z-index: 10; 
@@ -53,7 +51,6 @@
 
         .main-content { flex: 1; display: flex; flex-direction: column; width: 100%; position: relative; }
         
-        /* تأثير الزجاج للهيدر */
         .header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.3s; }
         body.dark-mode .header { background: rgba(30, 41, 59, 0.85); }
         
@@ -71,17 +68,13 @@
         
         .email-list-container { flex: 1; overflow-y: auto; position: relative; }
         
-        /* تأثيرات الرسايل والـ Avatars */
         .email-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s, transform 0.2s; display: flex; align-items: center; gap: 12px; animation: slideIn 0.4s ease-out forwards; opacity: 0; transform: translateY(10px); }
         .email-item:hover { background: #f8fafc; }
         .email-item.selected { background: #eff6ff; border-right: 4px solid var(--primary); }
         
-        /* أنيمشن ظهور الرسايل */
         @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
-        /* تأخير أنيمشن العناصر عشان تنزل ورا بعض */
         .email-item:nth-child(1) { animation-delay: 0.05s; } .email-item:nth-child(2) { animation-delay: 0.1s; } .email-item:nth-child(3) { animation-delay: 0.15s; } .email-item:nth-child(4) { animation-delay: 0.2s; } .email-item:nth-child(5) { animation-delay: 0.25s; }
 
-        /* ستايل الأفاتار (دائرة الحرف) */
         .avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
         .e-sender { font-weight: bold; font-size: 1rem; color: var(--text); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -122,7 +115,6 @@
         
         .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; text-align: center; padding: 20px;}
 
-        /* تأثيرات النوافذ المنبثقة الناعمة */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(5px); }
         .modal-box { background: var(--card); width: 100%; max-width: 600px; padding: 25px; border-radius: 15px; box-shadow: 0 15px 30px rgba(0,0,0,0.3); transition: background 0.3s; max-height: 90vh; overflow-y: auto; box-sizing: border-box; transform: scale(0.9); opacity: 0; animation: popIn 0.3s forwards ease-out; }
         @keyframes popIn { to { transform: scale(1); opacity: 1; } }
@@ -159,7 +151,6 @@
         .contact-item:hover { background: #f8fafc; } body.dark-mode .contact-item:hover { background: #0f172a; }
         .contact-name { font-weight: bold; } .contact-email { color: #64748b; font-size: 0.85rem; }
 
-        /* ========= Media Queries للموبايل ========= */
         @media (max-width: 768px) {
             .mobile-toggle { display: block; }
             .header { padding: 15px; flex-direction: column; align-items: flex-start; gap: 10px;}
@@ -183,7 +174,6 @@
             .contact-input-group { flex-direction: column; }
         }
 
-        /* ========= ستايلات قسم الأمان 2FA (Neon Effect) =========== */
         .auth-container { flex: 1; padding: 30px; overflow-y: auto; background: transparent; transition: opacity 0.3s; animation: fadeIn 0.4s; }
         .auth-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .auth-card { 
@@ -194,7 +184,6 @@
         .auth-card:hover { transform: translateY(-5px); }
         .auth-account { font-weight: 900; font-size: 1.2rem; color: var(--text); margin-bottom: 5px; }
         
-        /* تلميع أرقام الـ 2FA */
         .auth-code { 
             font-size: 2.8rem; font-weight: 900; letter-spacing: 8px; 
             background: linear-gradient(90deg, var(--primary), #8b5cf6);
@@ -358,13 +347,19 @@
     <div class="modal-overlay" id="add-auth-modal">
         <div class="modal-box" style="max-width: 400px;">
             <h3 class="modal-title">➕ إضافة مفتاح أمان</h3>
-            <p style="font-size:0.8rem; color:#64748b; margin-top:0;">ادخل الاسم والكود السري (Secret Key).</p>
+            <p style="font-size:0.8rem; color:#64748b; margin-top:0;">امسح الباركود بالكاميرا أو ادخل البيانات يدوياً.</p>
+            
+            <div id="qr-reader" style="width:100%; display:none; margin-bottom:15px; border-radius:8px; overflow:hidden; border: 1px solid var(--border);"></div>
+            <button id="btn-scan-qr" class="btn-compose" style="width:100%; margin-bottom:15px; background:linear-gradient(135deg, #8b5cf6, #6d28d9); box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);" onclick="startQRScanner()">📷 مسح الباركود (QR Code)</button>
+            
+            <div style="text-align:center; color:#94a3b8; margin-bottom:15px; font-size:0.9rem;">— أو الإدخال اليدوي —</div>
+
             <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
                 <input type="text" id="auth-acc-name" class="input-field" placeholder="اسم الموقع (مثال: فيسبوك)" style="margin-bottom:0;">
                 <input type="text" id="auth-acc-key" class="input-field" placeholder="الكود السري (Secret Key)" style="margin-bottom:0;">
             </div>
             <div style="display:flex; gap:10px;">
-                <button class="btn-cancel" onclick="document.getElementById('add-auth-modal').style.display='none'" style="flex:1;">إلغاء</button>
+                <button class="btn-cancel" onclick="closeAuthModal()" style="flex:1;">إلغاء</button>
                 <button class="btn-send" onclick="saveAuthAccount()" style="flex:1;">حفظ ✅</button>
             </div>
         </div>
@@ -430,10 +425,8 @@
         let totalCount = 0;
 
         function setupRealtime() {
-            // التعديل هنا: شلنا الـ filter الصارم عشان الكود يقدر يستلم أي رسالة بحروف سمول أو كابيتال ويعالجها هنا
             myApp.channel('custom-all-channel')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emails' }, payload => {
-                // التأكد من إن الرسالة الجديدة جاية لنفس الإيميل (مع تجاهل حالة الحروف)
                 if (payload.new.recipient && payload.new.recipient.toLowerCase() === userData.email_address.toLowerCase()) {
                     playBeep();
                     showToast(`رسالة جديدة من: ${payload.new.sender.replace(/</g, '').replace(/>/g, '')}`);
@@ -577,7 +570,6 @@
             try {
                 let query = myApp.from('emails').select('*', { count: 'exact' }).order('created_at', { ascending: false });
                 
-                // التعديل الرئيسي هنا: استخدام ilike بدل eq عشان يتجاهل الحروف الكابيتال والسمول
                 if (currentTab === 'inbox') query = query.ilike('recipient', userData.email_address).eq('is_trashed', false); 
                 else if (currentTab === 'sent') query = query.ilike('sender', `%${userData.email_address}%`).eq('is_trashed', false); 
                 else if (currentTab === 'trash') query = query.or(`recipient.ilike.${userData.email_address},sender.ilike.%${userData.email_address}%`).eq('is_trashed', true);
@@ -652,13 +644,11 @@
                 let displayPerson = currentTab === 'inbox' || currentTab === 'starred' ? email.sender.split('<')[0].replace(/"/g, '') : `إلى: ${email.recipient}`;
                 if(currentTab === 'trash') displayPerson = email.sender.split('<')[0].replace(/"/g, '');
                 
-                // --- استخراج حرف الأفاتار واللون ---
                 let cleanName = displayPerson.replace('إلى:', '').trim();
                 let firstLetter = cleanName ? cleanName.charAt(0).toUpperCase() : '?';
                 let colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
                 let bgColor = colors[(cleanName.charCodeAt(0) || 0) % colors.length];
                 let avatarHTML = `<div class="avatar" style="background-color: ${bgColor};">${firstLetter}</div>`;
-                // ------------------------------------
 
                 let hasAttachment = email.body_text.includes('supabase.co/storage') ? ' 📎' : '';
                 let isChecked = selectedEmailIds.includes(email.id) ? 'checked' : '';
@@ -728,7 +718,6 @@
             document.querySelectorAll('.email-item').forEach(el => el.classList.remove('selected'));
             element.classList.add('selected');
             
-            // تفعيل نظام العرض للموبايل
             document.getElementById('list-wrapper').classList.add('hide-on-mobile');
             document.getElementById('reader-wrapper').classList.add('show-on-mobile');
 
@@ -737,7 +726,6 @@
             document.getElementById('reader-frame').style.display = 'block';
             document.getElementById('reader-subject').innerText = email.subject || 'بدون عنوان';
             
-            // إضافة الأفاتار داخل القارئ نفسه 
             let cleanName = (email.sender.split('<')[0].replace(/"/g, '')).trim();
             let firstLetter = cleanName ? cleanName.charAt(0).toUpperCase() : '?';
             let bgColor = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][(cleanName.charCodeAt(0) || 0) % 5];
@@ -822,7 +810,7 @@
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
         }
 
-        // ================== خوارزمية 2FA الذاتية (Neon Timer) ==================
+        // ================== نظام 2FA الذاتي + قارئ الباركود ==================
         async function getTOTP(secretKey) {
             try {
                 secretKey = secretKey.replace(/\s+/g, '').toUpperCase();
@@ -851,7 +839,63 @@
             } catch (err) { return "رمز غير صالح"; }
         }
 
-        function openAddAuthModal() { document.getElementById('add-auth-modal').style.display = 'flex'; }
+        let html5QrcodeScanner;
+
+        function startQRScanner() {
+            document.getElementById('qr-reader').style.display = 'block';
+            document.getElementById('btn-scan-qr').style.display = 'none';
+            
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                (decodedText, decodedResult) => {
+                    // إغلاق الكاميرا بعد القراءة الناجحة
+                    html5QrcodeScanner.stop().then(() => {
+                        document.getElementById('qr-reader').style.display = 'none';
+                        document.getElementById('btn-scan-qr').style.display = 'block';
+                    });
+                    
+                    if(decodedText.startsWith('otpauth://')) {
+                        try {
+                            const url = new URL(decodedText);
+                            const secret = url.searchParams.get('secret');
+                            let name = decodeURIComponent(url.pathname.replace('//totp/', '').replace('/totp/', ''));
+                            const issuer = url.searchParams.get('issuer');
+                            
+                            if(issuer && !name.includes(issuer)) name = issuer + ' (' + name + ')';
+                            
+                            if(secret) {
+                                document.getElementById('auth-acc-name').value = name || 'حساب جديد';
+                                document.getElementById('auth-acc-key').value = secret;
+                                alert('تم قراءة الكود بنجاح! ✅ اضغط حفظ الآن.');
+                            }
+                        } catch(e) {
+                            alert('عذراً، الباركود غير مدعوم أو تالف.');
+                        }
+                    } else {
+                        alert('عذراً، هذا ليس باركود 2FA صحيح.');
+                    }
+                },
+                (errorMessage) => {
+                    // تجاهل الأخطاء أثناء محاولة القراءة المستمرة
+                }
+            ).catch((err) => {
+                alert('عذراً، يجب السماح باستخدام الكاميرا أو لا توجد كاميرا مدعومة.');
+                document.getElementById('qr-reader').style.display = 'none';
+                document.getElementById('btn-scan-qr').style.display = 'block';
+            });
+        }
+
+        function closeAuthModal() {
+            document.getElementById('add-auth-modal').style.display = 'none';
+            if(html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+                html5QrcodeScanner.stop().then(() => {
+                    document.getElementById('qr-reader').style.display = 'none';
+                    document.getElementById('btn-scan-qr').style.display = 'block';
+                }).catch(e => console.log(e));
+            }
+        }
 
         async function saveAuthAccount() {
             const name = document.getElementById('auth-acc-name').value.trim();
@@ -861,7 +905,7 @@
             const { error } = await myApp.from('a2z_2fa').insert([{ user_id: userData.id, account_name: name, secret_key: key }]);
             if(!error) {
                 alert('تمت الإضافة بنجاح! 🎉');
-                document.getElementById('add-auth-modal').style.display = 'none';
+                closeAuthModal();
                 document.getElementById('auth-acc-name').value = ''; document.getElementById('auth-acc-key').value = '';
                 loadAuthAccounts();
             } else { alert('خطأ في الحفظ!'); }
@@ -895,7 +939,6 @@
                 const remains = 30 - (new Date().getSeconds() % 30);
                 const percentage = (remains / 30) * 100;
                 
-                // تأثير النيون: تغيير اللون على حسب الوقت
                 let barColor = 'var(--primary)';
                 if (remains <= 10) barColor = '#ef4444'; // أحمر
                 else if (remains <= 20) barColor = '#f59e0b'; // برتقالي
