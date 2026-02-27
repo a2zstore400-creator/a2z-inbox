@@ -134,13 +134,17 @@
         body.dark-mode .editor-toolbar { background: #1e293b; border-color: var(--border); }
         .editor-btn { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 5px 10px; border-radius: 5px; color: var(--text); font-weight: bold; transition: 0.2s; }
         .editor-btn:hover { background: #e2e8f0; } body.dark-mode .editor-btn:hover { background: #334155; }
-        .rich-textarea { height: 150px; border-radius: 0 0 8px 8px; overflow-y: auto; text-align: right; direction: rtl; }
+        
+        .rich-textarea { height: 150px; border-radius: 0 0 8px 8px; overflow-y: auto; text-align: right; direction: rtl; transition: 0.2s; }
+        /* ستايل السحب والإفلات للمرفقات */
+        .rich-textarea.drag-over { border: 2px dashed var(--primary); background: rgba(0, 67, 156, 0.05); }
+        body.dark-mode .rich-textarea.drag-over { border-color: var(--primary); background: rgba(96, 165, 250, 0.1); }
 
         .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; flex-wrap: wrap; gap: 10px;}
         .attachment-area { display: flex; align-items: center; gap: 10px; }
         .btn-attach { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; transition: 0.2s; }
         .btn-attach:hover { transform: scale(1.1); }
-        .attachment-name { font-size: 0.8rem; color: #64748b; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .attachment-name { font-size: 0.8rem; color: #64748b; max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
         .btn-cancel { background: #f1f5f9; color: #475569; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; transition: 0.2s; }
         .btn-cancel:hover { background: #e2e8f0; }
         .btn-send { background: linear-gradient(135deg, var(--primary), #3b82f6); color: white; border: none; padding: 10px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; box-shadow: 0 4px 10px rgba(0,67,156,0.3); transition: 0.3s; }
@@ -155,6 +159,16 @@
         .contact-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); align-items: center; transition: 0.2s; }
         .contact-item:hover { background: #f8fafc; } body.dark-mode .contact-item:hover { background: #0f172a; }
         .contact-name { font-weight: bold; } .contact-email { color: #64748b; font-size: 0.85rem; }
+
+        /* ========= ستايل الـ Skeleton Loaders للتحميل النبضي ========= */
+        .skeleton-item { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--border); }
+        .skeleton-avatar { width: 42px; height: 42px; border-radius: 50%; background: #e2e8f0; animation: pulse 1.5s infinite ease-in-out; flex-shrink: 0; }
+        .skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .skeleton-line { height: 10px; background: #e2e8f0; border-radius: 4px; animation: pulse 1.5s infinite ease-in-out; }
+        .skeleton-line.short { width: 40%; }
+        body.dark-mode .skeleton-avatar, body.dark-mode .skeleton-line { background: #334155; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 0.2; } 100% { opacity: 0.6; } }
+        /* ============================================================= */
 
         @media (max-width: 768px) {
             .mobile-toggle { display: block; }
@@ -255,8 +269,7 @@
                 </div>
                 
                 <div class="email-list-container" id="emails-list">
-                    <div style="padding: 40px; text-align: center; color: #64748b;">جاري التحميل... ⏳</div>
-                </div>
+                    </div>
 
                 <div class="pagination-bar">
                     <button class="page-btn" id="btn-prev" onclick="changePage(-1)">السابق</button>
@@ -321,11 +334,11 @@
                 <button class="editor-btn" onclick="execCmd('underline')"><u>U</u></button>
                 <button class="editor-btn" onclick="insertLink()">🔗</button>
             </div>
-            <div id="compose-body" class="input-field rich-textarea" contenteditable="true" placeholder="اكتب رسالتك هنا..."></div>
+            <div id="compose-body" class="input-field rich-textarea" contenteditable="true" placeholder="اكتب رسالتك هنا... (يمكنك سحب وإفلات الصور والملفات هنا)"></div>
             <div class="modal-actions">
                 <div class="attachment-area">
                     <input type="file" id="compose-attachment" style="display: none;" onchange="handleFileSelect(event)">
-                    <button class="btn-attach" onclick="document.getElementById('compose-attachment').click()">📎</button>
+                    <button class="btn-attach" onclick="document.getElementById('compose-attachment').click()" title="إرفاق ملف">📎</button>
                     <span class="attachment-name" id="attachment-name"></span>
                 </div>
                 <div style="display: flex; gap: 10px;">
@@ -576,7 +589,15 @@
 
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
-            list.innerHTML = "<div style='text-align:center; padding:40px; color:#64748b;'>جاري التحميل... ⏳</div>";
+            
+            // ===== إضافة Skeleton Loaders هنا =====
+            let skeletonHTML = '';
+            for(let i=0; i<6; i++) {
+                skeletonHTML += `<div class="skeleton-item"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>`;
+            }
+            list.innerHTML = skeletonHTML;
+            // =====================================
+            
             selectedEmailIds = []; 
             
             const from = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -789,9 +810,36 @@
             const file = event.target.files[0];
             if (file) {
                 if (file.size > 5*1024*1024) return alert('الحد الأقصى 5 ميجابايت.');
-                selectedFile = file; document.getElementById('attachment-name').innerText = file.name;
+                selectedFile = file; document.getElementById('attachment-name').innerText = "📎 " + file.name;
             }
         }
+
+        // ================== نظام السحب والإفلات للمرفقات ==================
+        const composeBodyEl = document.getElementById('compose-body');
+        
+        composeBodyEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            composeBodyEl.classList.add('drag-over');
+        });
+
+        composeBodyEl.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            composeBodyEl.classList.remove('drag-over');
+        });
+
+        composeBodyEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            composeBodyEl.classList.remove('drag-over');
+            
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.size > 5*1024*1024) return alert('الحد الأقصى للملفات هو 5 ميجابايت.');
+                
+                selectedFile = file; 
+                document.getElementById('attachment-name').innerText = "📎 " + file.name;
+            }
+        });
+        // =================================================================
 
         async function sendEmail() {
             const to = document.getElementById('compose-to').value.trim();
