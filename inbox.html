@@ -792,7 +792,9 @@
 
             let finalDesign = superDecoder(email.body_text);
             let isDark = document.body.classList.contains('dark-mode');
-            let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><style>body{margin:0;padding:20px;background:${isDark ? '#1e293b' : '#fff'};color:${isDark ? '#f1f5f9' : '#000'};font-family:-apple-system, sans-serif; font-size:16px;} a{color:#3b82f6;} div{color:${isDark ? '#f1f5f9' : '#000'} !important; background-color:transparent !important;}</style></head><body>${finalDesign}</body></html>`;
+            // ===== التعديل السحري هنا: إضافة <base target="_blank"> =====
+            let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:20px;background:${isDark ? '#1e293b' : '#fff'};color:${isDark ? '#f1f5f9' : '#000'};font-family:-apple-system, sans-serif; font-size:16px;} a{color:#3b82f6;} div{color:${isDark ? '#f1f5f9' : '#000'} !important; background-color:transparent !important;}</style></head><body>${finalDesign}</body></html>`;
+            // ==========================================================
             document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
         }
 
