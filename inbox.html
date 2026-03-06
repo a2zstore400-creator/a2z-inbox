@@ -136,7 +136,6 @@
         .editor-btn:hover { background: #e2e8f0; } body.dark-mode .editor-btn:hover { background: #334155; }
         
         .rich-textarea { height: 150px; border-radius: 0 0 8px 8px; overflow-y: auto; text-align: right; direction: rtl; transition: 0.2s; }
-        /* ستايل السحب والإفلات للمرفقات */
         .rich-textarea.drag-over { border: 2px dashed var(--primary); background: rgba(0, 67, 156, 0.05); }
         body.dark-mode .rich-textarea.drag-over { border-color: var(--primary); background: rgba(96, 165, 250, 0.1); }
 
@@ -160,7 +159,6 @@
         .contact-item:hover { background: #f8fafc; } body.dark-mode .contact-item:hover { background: #0f172a; }
         .contact-name { font-weight: bold; } .contact-email { color: #64748b; font-size: 0.85rem; }
 
-        /* ========= ستايل الـ Skeleton Loaders للتحميل النبضي ========= */
         .skeleton-item { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--border); }
         .skeleton-avatar { width: 42px; height: 42px; border-radius: 50%; background: #e2e8f0; animation: pulse 1.5s infinite ease-in-out; flex-shrink: 0; }
         .skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: 10px; }
@@ -168,7 +166,6 @@
         .skeleton-line.short { width: 40%; }
         body.dark-mode .skeleton-avatar, body.dark-mode .skeleton-line { background: #334155; }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 0.2; } 100% { opacity: 0.6; } }
-        /* ============================================================= */
 
         @media (max-width: 768px) {
             .mobile-toggle { display: block; }
@@ -386,7 +383,6 @@
     <div id="live-toast" class="toast-notification">🔔 رسالة جديدة!</div>
 
     <script>
-        // ==================== PWA Service Worker Registration ====================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
@@ -394,7 +390,6 @@
                     .catch(err => console.log('Service Worker registration failed:', err));
             });
         }
-        // =========================================================================
 
         const userData = JSON.parse(localStorage.getItem('a2z_user'));
         if (!userData) { window.location.href = 'index.html'; }
@@ -532,27 +527,80 @@
             `).join('');
         }
 
+        // =========================================================================
+        // التحديث الجبار لـ superDecoder (بيحل مشاكل Windscribe واللغة العربية)
+        // =========================================================================
         function superDecoder(raw) {
             if (!raw) return "";
-            if (!raw.includes('Content-Type:') && (raw.includes('<div') || raw.includes('<html'))) return raw; 
-            const fixArabic = (str) => { try { return decodeURIComponent(escape(str)); } catch(e) { return str; } };
-            try {
-                let parts = raw.split(/--_?[A-Za-z0-9=_-]+/);
-                for (let part of parts) {
-                    let lowerPart = part.toLowerCase();
-                    if (lowerPart.includes('content-type: text/html')) {
-                        let splitContent = part.split(/\r?\n\r?\n/);
-                        let bodyText = splitContent.length > 1 ? splitContent.slice(1).join('\n\n').trim() : part;
-                        if (lowerPart.includes('base64')) {
-                            try { return fixArabic(atob(bodyText.replace(/[\s\r\n]/g, ''))); } catch(e) { try { return atob(bodyText.replace(/[\s\r\n]/g, '')); } catch(e){} }
-                        } else if (lowerPart.includes('quoted-printable')) {
-                            return fixArabic(bodyText.replace(/=([0-9A-F]{2})/gi, (m, p1) => String.fromCharCode(parseInt(p1, 16))).replace(/=\r?\n/g, ''));
-                        } else { return fixArabic(bodyText); }
+
+            const decodeQP = (str) => {
+                let cleaned = str.replace(/=\r?\n/g, '').replace(/=([0-9A-Fa-f]{2})/g, '%$1');
+                try { return decodeURIComponent(cleaned); } catch (e) { try { return unescape(cleaned); } catch(ex) { return str; } }
+            };
+            const decodeB64 = (str) => {
+                let cleaned = str.replace(/[\s\r\n]/g, '');
+                try { return decodeURIComponent(escape(atob(cleaned))); } catch(e) { try { return atob(cleaned); } catch(ex) { return str; } }
+            };
+
+            let processedHtml = raw;
+
+            // 1. محاولة استخراج الأجزاء لو الرسالة مقسمة (Multipart)
+            let boundaryMatch = raw.match(/boundary="?([^"\r\n]+)"?/i);
+            if (boundaryMatch) {
+                let boundary = boundaryMatch[1];
+                let parts = raw.split(new RegExp('--' + boundary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+                let htmlPart = parts.find(p => p.toLowerCase().includes('content-type: text/html'));
+                if (htmlPart) {
+                    let headerEndIdx = htmlPart.indexOf('\n\n') > -1 ? htmlPart.indexOf('\n\n') : htmlPart.indexOf('\r\n\r\n');
+                    let headers = htmlPart.substring(0, headerEndIdx).toLowerCase();
+                    let body = htmlPart.substring(headerEndIdx).trim();
+                    
+                    if (headers.includes('base64')) processedHtml = decodeB64(body);
+                    else if (headers.includes('quoted-printable')) processedHtml = decodeQP(body);
+                    else processedHtml = body;
+                }
+            } else {
+                // 2. لو الرسالة حتة واحدة ومفيهاش فواصل (حل مشكلة Windscribe)
+                let htmlStartIndex = raw.search(/<!doctype|<html/i);
+                if (htmlStartIndex > -1) {
+                    let headers = raw.substring(0, htmlStartIndex).toLowerCase();
+                    let body = raw.substring(htmlStartIndex);
+                    
+                    if (headers.includes('base64')) processedHtml = decodeB64(body);
+                    else if (headers.includes('quoted-printable')) processedHtml = decodeQP(body);
+                    else processedHtml = body;
+                } else {
+                    let headerEndIdx = raw.indexOf('\n\n') > -1 ? raw.indexOf('\n\n') : raw.indexOf('\r\n\r\n');
+                    if (headerEndIdx > -1 && headerEndIdx < 1000) { 
+                        let headers = raw.substring(0, headerEndIdx).toLowerCase();
+                        let body = raw.substring(headerEndIdx).trim();
+                        if (headers.includes('base64')) processedHtml = decodeB64(body);
+                        else if (headers.includes('quoted-printable')) processedHtml = decodeQP(body);
                     }
                 }
-                return `<div style="padding:20px; direction:ltr; text-align:left; font-family:monospace; white-space:pre-wrap;">${raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-            } catch (err) { return `<div style="padding:20px; color:red;">خطأ: ${err.message}</div>`; }
+            }
+
+            // 3. لو لسه فيها رموز تشفير (Quoted-Printable) زي حالة Vodafone
+            if (processedHtml === raw && (/=[0-9A-F]{2}/i.test(processedHtml))) {
+                processedHtml = decodeQP(processedHtml);
+            }
+
+            // 4. تصليح الحروف العربية المشوهة (Mojibake)
+            try {
+                if (/[ÊÇÙÈÑ]/.test(processedHtml) && !processedHtml.includes('ك')) {
+                    processedHtml = decodeURIComponent(escape(processedHtml));
+                }
+            } catch(e) {}
+
+            // 5. مسح أي أكواد سيرفر باقية في أول الرسالة
+            if (processedHtml.startsWith('Received:')) {
+                let cleanStart = processedHtml.search(/<!doctype|<html|<body|<div/i);
+                if (cleanStart > -1) processedHtml = processedHtml.substring(cleanStart);
+            }
+
+            return processedHtml;
         }
+        // =========================================================================
 
         function loadTab(tab) {
             currentTab = tab;
@@ -590,13 +638,11 @@
         async function fetchEmails() {
             const list = document.getElementById('emails-list');
             
-            // ===== إضافة Skeleton Loaders هنا =====
             let skeletonHTML = '';
             for(let i=0; i<6; i++) {
                 skeletonHTML += `<div class="skeleton-item"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div></div>`;
             }
             list.innerHTML = skeletonHTML;
-            // =====================================
             
             selectedEmailIds = []; 
             
@@ -792,9 +838,9 @@
 
             let finalDesign = superDecoder(email.body_text);
             let isDark = document.body.classList.contains('dark-mode');
-            // ===== التعديل السحري هنا: إضافة <base target="_blank"> =====
+            
+            // تم إضافة target="_blank" هنا لحل مشكلة اللينكات 
             let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:20px;background:${isDark ? '#1e293b' : '#fff'};color:${isDark ? '#f1f5f9' : '#000'};font-family:-apple-system, sans-serif; font-size:16px;} a{color:#3b82f6;} div{color:${isDark ? '#f1f5f9' : '#000'} !important; background-color:transparent !important;}</style></head><body>${finalDesign}</body></html>`;
-            // ==========================================================
             document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
         }
 
@@ -816,7 +862,6 @@
             }
         }
 
-        // ================== نظام السحب والإفلات للمرفقات ==================
         const composeBodyEl = document.getElementById('compose-body');
         
         composeBodyEl.addEventListener('dragover', (e) => {
@@ -841,7 +886,6 @@
                 document.getElementById('attachment-name').innerText = "📎 " + file.name;
             }
         });
-        // =================================================================
 
         async function sendEmail() {
             const to = document.getElementById('compose-to').value.trim();
