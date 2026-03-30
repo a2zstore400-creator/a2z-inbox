@@ -528,13 +528,13 @@
         }
 
         // =========================================================================
-        // التحديث الجبار لـ superDecoder (بيحل مشاكل Windscribe واللغة العربية)
+        // التحديث العظيم لـ superDecoder عشان يحل مشكلة رسائل Oplata النصية الطويلة
         // =========================================================================
         function superDecoder(raw) {
             if (!raw) return "";
 
             const decodeQP = (str) => {
-                let cleaned = str.replace(/=\r?\n/g, '').replace(/=([0-9A-Fa-f]{2})/g, '%$1');
+                let cleaned = str.replace(/=\r?\n/g, '').replace(/=([0-9A-Fa-f]{2})/gi, '%$1');
                 try { return decodeURIComponent(cleaned); } catch (e) { try { return unescape(cleaned); } catch(ex) { return str; } }
             };
             const decodeB64 = (str) => {
@@ -544,58 +544,71 @@
 
             let processedHtml = raw;
 
-            // 1. محاولة استخراج الأجزاء لو الرسالة مقسمة (Multipart)
             let boundaryMatch = raw.match(/boundary="?([^"\r\n]+)"?/i);
             if (boundaryMatch) {
                 let boundary = boundaryMatch[1];
                 let parts = raw.split(new RegExp('--' + boundary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+                
                 let htmlPart = parts.find(p => p.toLowerCase().includes('content-type: text/html'));
-                if (htmlPart) {
-                    let headerEndIdx = htmlPart.indexOf('\n\n') > -1 ? htmlPart.indexOf('\n\n') : htmlPart.indexOf('\r\n\r\n');
-                    let headers = htmlPart.substring(0, headerEndIdx).toLowerCase();
-                    let body = htmlPart.substring(headerEndIdx).trim();
+                let plainPart = parts.find(p => p.toLowerCase().includes('content-type: text/plain'));
+                let targetPart = htmlPart || plainPart;
+
+                if (targetPart) {
+                    let headerEndIdx = targetPart.indexOf('\r\n\r\n');
+                    if(headerEndIdx === -1) headerEndIdx = targetPart.indexOf('\n\n');
                     
-                    if (headers.includes('base64')) processedHtml = decodeB64(body);
-                    else if (headers.includes('quoted-printable')) processedHtml = decodeQP(body);
-                    else processedHtml = body;
-                }
-            } else {
-                // 2. لو الرسالة حتة واحدة ومفيهاش فواصل (حل مشكلة Windscribe)
-                let htmlStartIndex = raw.search(/<!doctype|<html/i);
-                if (htmlStartIndex > -1) {
-                    let headers = raw.substring(0, htmlStartIndex).toLowerCase();
-                    let body = raw.substring(htmlStartIndex);
-                    
-                    if (headers.includes('base64')) processedHtml = decodeB64(body);
-                    else if (headers.includes('quoted-printable')) processedHtml = decodeQP(body);
-                    else processedHtml = body;
-                } else {
-                    let headerEndIdx = raw.indexOf('\n\n') > -1 ? raw.indexOf('\n\n') : raw.indexOf('\r\n\r\n');
-                    if (headerEndIdx > -1 && headerEndIdx < 1000) { 
-                        let headers = raw.substring(0, headerEndIdx).toLowerCase();
-                        let body = raw.substring(headerEndIdx).trim();
+                    if(headerEndIdx > -1) {
+                        let headers = targetPart.substring(0, headerEndIdx).toLowerCase();
+                        let body = targetPart.substring(headerEndIdx).trim();
+                        
                         if (headers.includes('base64')) processedHtml = decodeB64(body);
                         else if (headers.includes('quoted-printable')) processedHtml = decodeQP(body);
+                        else processedHtml = body;
+
+                        // الحفاظ على تنسيق المسافات والسطور للإيميلات النصية
+                        if (!htmlPart && plainPart) {
+                            processedHtml = `<div style="white-space: pre-wrap; font-family: sans-serif; font-size: 15px; direction: ltr; text-align: left;">${processedHtml}</div>`;
+                        }
+                    }
+                }
+            } else {
+                let headerEndIdx = raw.indexOf('\r\n\r\n');
+                if(headerEndIdx === -1) headerEndIdx = raw.indexOf('\n\n');
+                
+                // زودنا مساحة استيعاب الهيدر لـ 5000 حرف عشان نقص هيدر Oplata بالكامل
+                if (headerEndIdx > -1 && headerEndIdx < 5000) { 
+                    let headers = raw.substring(0, headerEndIdx).toLowerCase();
+                    let body = raw.substring(headerEndIdx).trim();
+                    
+                    if (headers.includes('base64')) processedHtml = decodeB64(body);
+                    else if (headers.includes('quoted-printable')) processedHtml = decodeQP(body);
+                    else processedHtml = body;
+
+                    // وضع الإيميل النصي في صندوق منسق عشان الكلام ميبقاش سايح على بعضه
+                    if (!headers.includes('text/html') && !processedHtml.trim().startsWith('<')) {
+                        processedHtml = `<div style="white-space: pre-wrap; font-family: sans-serif; font-size: 15px; direction: ltr; text-align: left;">${processedHtml}</div>`;
                     }
                 }
             }
 
-            // 3. لو لسه فيها رموز تشفير (Quoted-Printable) زي حالة Vodafone
             if (processedHtml === raw && (/=[0-9A-F]{2}/i.test(processedHtml))) {
                 processedHtml = decodeQP(processedHtml);
             }
 
-            // 4. تصليح الحروف العربية المشوهة (Mojibake)
             try {
                 if (/[ÊÇÙÈÑ]/.test(processedHtml) && !processedHtml.includes('ك')) {
                     processedHtml = decodeURIComponent(escape(processedHtml));
                 }
             } catch(e) {}
 
-            // 5. مسح أي أكواد سيرفر باقية في أول الرسالة
             if (processedHtml.startsWith('Received:')) {
                 let cleanStart = processedHtml.search(/<!doctype|<html|<body|<div/i);
                 if (cleanStart > -1) processedHtml = processedHtml.substring(cleanStart);
+                else {
+                    let doubleNewline = processedHtml.indexOf('\r\n\r\n');
+                    if(doubleNewline === -1) doubleNewline = processedHtml.indexOf('\n\n');
+                    if(doubleNewline > -1) processedHtml = `<div style="white-space: pre-wrap; font-family: sans-serif; font-size: 15px; direction: ltr; text-align: left;">${processedHtml.substring(doubleNewline).trim()}</div>`;
+                }
             }
 
             return processedHtml;
@@ -839,7 +852,6 @@
             let finalDesign = superDecoder(email.body_text);
             let isDark = document.body.classList.contains('dark-mode');
             
-            // تم إضافة target="_blank" هنا لحل مشكلة اللينكات 
             let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:20px;background:${isDark ? '#1e293b' : '#fff'};color:${isDark ? '#f1f5f9' : '#000'};font-family:-apple-system, sans-serif; font-size:16px;} a{color:#3b82f6;} div{color:${isDark ? '#f1f5f9' : '#000'} !important; background-color:transparent !important;}</style></head><body>${finalDesign}</body></html>`;
             document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
         }
