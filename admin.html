@@ -189,6 +189,7 @@
 
         async function updateStatus(uid, newStatus) {
             if (userData.email_address !== 'admin@a2z-mail.com') return;
+            if (newStatus === 'banned' && uid === userData.id) return alert('لا يمكنك حظر حساب الإدارة الحالي.');
             const { error } = await myApp.from('a2z_users').update({ status: newStatus }).eq('id', uid);
             if(!error) { alert('تم التحديث بنجاح! ✅'); loadDashboard(); }
         }
