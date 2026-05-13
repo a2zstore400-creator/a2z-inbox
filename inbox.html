@@ -70,12 +70,13 @@
             padding: 10px 16px;
             font-weight: 700;
             font-size: 0.9rem;
-            display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
         }
+        .impersonation-banner.show { display: flex; }
+        .impersonation-banner .banner-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .impersonation-banner button {
             border: none;
             background: rgba(255, 255, 255, 0.2);
@@ -85,6 +86,28 @@
             font-family: 'Cairo', sans-serif;
             font-weight: 700;
             cursor: pointer;
+        }
+        .admin-mailbox-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        .admin-mailbox-row:last-child { border-bottom: none; }
+        .admin-mailbox-row button {
+            flex-shrink: 0;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: none;
+            background: var(--primary);
+            color: #fff;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.85rem;
         }
         
         .user-info { font-weight: bold; color: var(--text); font-size: 1.1rem; display: flex; align-items: center; gap: 15px; }
@@ -308,7 +331,10 @@
     <div class="main-content">
         <div id="impersonation-banner" class="impersonation-banner" aria-live="polite">
             <span id="impersonation-text"></span>
-            <button type="button" onclick="stopImpersonation()">إنهاء المتابعة</button>
+            <div class="banner-actions">
+                <button type="button" onclick="openAdminMailboxModal()">تبديل الصندوق</button>
+                <button type="button" onclick="stopImpersonation()">إنهاء المتابعة</button>
+            </div>
         </div>
         <div class="header">
             <div class="user-info">
@@ -408,6 +434,18 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="admin-mailbox-modal" role="dialog" aria-modal="true" aria-labelledby="admin-mailbox-title" style="z-index:1100;" onclick="if(event.target===this)closeAdminMailboxModal()">
+        <div class="modal-box" style="max-width:480px;" onclick="event.stopPropagation()">
+            <h3 class="modal-title" id="admin-mailbox-title">📂 اختيار صندوق مستخدم</h3>
+            <p style="margin:0 0 12px 0; font-size:0.85rem; color:#64748b;">اختر حسابًا لفتح صندوقه مباشرة — بدون الرجوع للإدارة.</p>
+            <input type="text" id="admin-mailbox-filter" class="input-field" placeholder="🔍 ابحث بالاسم أو البريد..." style="margin-bottom:12px;" oninput="filterAdminMailboxList()">
+            <div id="admin-mailbox-user-list" style="max-height:min(50vh,320px); overflow-y:auto; border:1px solid var(--border); border-radius:10px;"></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:15px; flex-wrap:wrap;">
+                <button type="button" class="btn-cancel" onclick="closeAdminMailboxModal()">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="contacts-modal" role="dialog" aria-modal="true" aria-labelledby="contacts-modal-title">
         <div class="modal-box" style="max-width: 400px;">
             <h3 class="modal-title" id="contacts-modal-title">📒 دفتر العناوين</h3>
@@ -481,16 +519,18 @@
         );
         const mailboxOwnerEmail = isImpersonating ? impersonationData.targetEmail : userData.email_address;
 
-        document.getElementById('display-name').innerText = userData.username;
+        document.getElementById('display-name').innerText = isImpersonating
+            ? (impersonationData.targetName || impersonationData.targetEmail.split('@')[0])
+            : userData.username;
         document.getElementById('display-email').innerText = mailboxOwnerEmail;
         if (isImpersonating) {
             const banner = document.getElementById('impersonation-banner');
             const text = document.getElementById('impersonation-text');
-            text.innerText = `وضع متابعة مفعل: أنت تتصفح بريد ${impersonationData.targetEmail}`;
-            banner.style.display = 'flex';
+            text.innerText = `متابعة: ${impersonationData.targetEmail}`;
+            banner.classList.add('show');
         }
 
-        if (userData.email_address === 'admin@a2z-mail.com') {
+        if (isSuperAdmin) {
             const sidebar = document.querySelector('.sidebar');
             const themeBtn = document.getElementById('btn-theme');
             const adminBtn = document.createElement('div');
@@ -498,6 +538,20 @@
             adminBtn.innerHTML = '⚙️ الإدارة';
             adminBtn.onclick = () => window.location.href = 'admin.html';
             sidebar.insertBefore(adminBtn, themeBtn);
+
+            const mailboxBtn = document.createElement('div');
+            mailboxBtn.className = 'menu-item';
+            mailboxBtn.innerHTML = '📂 صندوق مستخدم';
+            mailboxBtn.onclick = () => openAdminMailboxModal();
+            sidebar.insertBefore(mailboxBtn, themeBtn);
+
+            if (isImpersonating) {
+                const ownBtn = document.createElement('div');
+                ownBtn.className = 'menu-item';
+                ownBtn.innerHTML = '🏠 بريدي الإداري';
+                ownBtn.onclick = () => { localStorage.removeItem('a2z_impersonation'); location.reload(); };
+                sidebar.insertBefore(ownBtn, themeBtn);
+            }
         }
 
         const savedTheme = localStorage.getItem('a2z_theme');
@@ -512,7 +566,7 @@
 
         function stopImpersonation() {
             localStorage.removeItem('a2z_impersonation');
-            window.location.href = 'admin.html';
+            location.reload();
         }
 
         function toggleSidebar() {
@@ -539,6 +593,74 @@
             throw new Error('Supabase client is unavailable');
         }
         const myApp = supabase.createClient(S_URL, S_KEY);
+
+        let adminUsersCache = [];
+
+        function applyImpersonationTarget(uid, username, emailAddress) {
+            if (!emailAddress || !isSuperAdmin) return;
+            localStorage.setItem('a2z_impersonation', JSON.stringify({
+                active: true,
+                by: userData.email_address,
+                targetId: uid,
+                targetName: username || '',
+                targetEmail: emailAddress,
+                startedAt: new Date().toISOString()
+            }));
+            location.reload();
+        }
+
+        async function openAdminMailboxModal() {
+            if (!isSuperAdmin) return;
+            const overlay = document.getElementById('admin-mailbox-modal');
+            overlay.style.display = 'flex';
+            document.getElementById('admin-mailbox-filter').value = '';
+            await refreshAdminMailboxUserList();
+        }
+
+        function closeAdminMailboxModal() {
+            document.getElementById('admin-mailbox-modal').style.display = 'none';
+        }
+
+        async function refreshAdminMailboxUserList() {
+            const listEl = document.getElementById('admin-mailbox-user-list');
+            listEl.innerHTML = '<div style="text-align:center;padding:14px;color:#64748b;">جاري التحميل...</div>';
+            try {
+                const { data, error } = await myApp.from('a2z_users').select('id, username, email_address').order('created_at', { ascending: false }).limit(400);
+                if (error) throw error;
+                adminUsersCache = data || [];
+                filterAdminMailboxList();
+            } catch (e) {
+                listEl.innerHTML = '<div style="text-align:center;padding:14px;color:#ef4444;">تعذر تحميل قائمة المستخدمين.</div>';
+            }
+        }
+
+        function filterAdminMailboxList() {
+            const q = (document.getElementById('admin-mailbox-filter').value || '').trim().toLowerCase();
+            const filtered = !q ? adminUsersCache : adminUsersCache.filter(u =>
+                (u.username && u.username.toLowerCase().includes(q)) ||
+                (u.email_address && u.email_address.toLowerCase().includes(q))
+            );
+            const listEl = document.getElementById('admin-mailbox-user-list');
+            listEl.innerHTML = '';
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<div style="text-align:center;padding:14px;color:#64748b;">لا نتائج.</div>';
+                return;
+            }
+            filtered.forEach(u => {
+                const row = document.createElement('div');
+                row.className = 'admin-mailbox-row';
+                const info = document.createElement('div');
+                info.style.overflow = 'hidden';
+                info.innerHTML = `<strong>${u.username || '—'}</strong><div dir="ltr" style="font-size:0.82rem;color:#64748b;text-align:right;">${u.email_address || ''}</div>`;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.innerText = 'فتح';
+                btn.onclick = () => applyImpersonationTarget(u.id, u.username, u.email_address);
+                row.appendChild(info);
+                row.appendChild(btn);
+                listEl.appendChild(row);
+            });
+        }
         
         let allEmails = [];
         let filteredEmails = [];
