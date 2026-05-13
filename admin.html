@@ -108,10 +108,11 @@
                             <th>البريد الإلكتروني</th>
                             <th>الحالة</th>
                             <th>تحكم</th>
+                            <th>صلاحيات السوبر</th>
                         </tr>
                     </thead>
                     <tbody id="users-body">
-                        <tr><td colspan="4" style="text-align:center">جاري تحميل البيانات... ⏳</td></tr>
+                        <tr><td colspan="5" style="text-align:center">جاري تحميل البيانات... ⏳</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -120,7 +121,9 @@
 
     <script>
         const userData = JSON.parse(localStorage.getItem('a2z_user'));
-        if (!userData || userData.email_address !== 'admin@a2z-mail.com') {
+        const SUPER_ADMIN_EMAILS = ['admin@a2z-mail.com'];
+        const isSuperAdmin = userData && SUPER_ADMIN_EMAILS.includes((userData.email_address || '').toLowerCase());
+        if (!userData || !isSuperAdmin) {
             alert('⛔ دخول غير مصرح به!');
             window.location.replace('login.html');
         }
@@ -161,10 +164,13 @@
                                     ? `<button class=\"btn btn-unban\" onclick=\"updateStatus('${u.id}', 'active')\">إلغاء الحظر</button>` 
                                     : `<button class=\"btn btn-ban\" onclick=\"updateStatus('${u.id}', 'banned')\">حظر</button>`}
                             </td>
+                            <td>
+                                <button class="btn" style="background:#0f766e; color:white;" onclick="openMailboxAs('${u.id}', '${(u.username || '').replace(/'/g, "\\'")}', '${(u.email_address || '').replace(/'/g, "\\'")}')">فتح البريد</button>
+                            </td>
                         </tr>
                     `).join('');
                 } else {
-                    body.innerHTML = '<tr><td colspan="4" style="text-align:center">لا يوجد مستخدمين حتى الآن</td></tr>';
+                    body.innerHTML = '<tr><td colspan="5" style="text-align:center">لا يوجد مستخدمين حتى الآن</td></tr>';
                 }
             } catch (error) {
                 console.error("Error loading dashboard", error);
@@ -192,6 +198,20 @@
             if (newStatus === 'banned' && uid === userData.id) return alert('لا يمكنك حظر حساب الإدارة الحالي.');
             const { error } = await myApp.from('a2z_users').update({ status: newStatus }).eq('id', uid);
             if(!error) { alert('تم التحديث بنجاح! ✅'); loadDashboard(); }
+        }
+
+        function openMailboxAs(uid, username, emailAddress) {
+            if (!emailAddress) return;
+            const payload = {
+                active: true,
+                by: userData.email_address,
+                targetId: uid,
+                targetName: username || '',
+                targetEmail: emailAddress,
+                startedAt: new Date().toISOString()
+            };
+            localStorage.setItem('a2z_impersonation', JSON.stringify(payload));
+            window.location.href = 'inbox.html';
         }
 
         // ⚡ الدالة الجديدة لتوليد الحسابات بالجملة (بعد إضافة التشفير)
