@@ -4,10 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A2Z Mail | صندوق الوارد</title>
+    <meta name="description" content="A2Z Mail - إدارة البريد الوارد والمرسل والأكواد الثنائية بشكل سريع وآمن.">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="color-scheme" content="light dark">
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00439c">
     <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -148,6 +153,10 @@
         .btn-cancel:hover { background: #e2e8f0; }
         .btn-send { background: linear-gradient(135deg, var(--primary), #3b82f6); color: white; border: none; padding: 10px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: 'Cairo'; box-shadow: 0 4px 10px rgba(0,67,156,0.3); transition: 0.3s; }
         .btn-send:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,67,156,0.4); }
+        button:focus-visible, .menu-item:focus-visible, .search-input:focus-visible, .input-field:focus-visible, .star-icon:focus-visible {
+            outline: 3px solid rgba(59, 130, 246, 0.5);
+            outline-offset: 2px;
+        }
 
         .bulk-actions-bar { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--card); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; gap: 10px;}
         body.dark-mode .bulk-actions-bar { background: #1e293b; }
@@ -230,6 +239,14 @@
         .timer-bar { height: 6px; background: #e2e8f0; border-radius: 5px; overflow: hidden; margin-top: 15px; }
         body.dark-mode .timer-bar { background: #334155; }
         .timer-progress { height: 100%; width: 100%; transition: width 1s linear, background-color 0.5s, box-shadow 0.5s; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -247,7 +264,7 @@
             </svg>
             <span style="font-family: sans-serif; font-weight: 900; letter-spacing: -1px; font-size: 1.4rem; background: linear-gradient(90deg, var(--primary), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">A2Z Mail</span>
         </div>
-        <button class="btn-compose" onclick="openCompose()">✏️ إنشاء رسالة</button>
+        <button type="button" class="btn-compose" onclick="openCompose()">✏️ إنشاء رسالة</button>
         <div class="menu-item active" id="tab-inbox" onclick="loadTab('inbox')">📥 البريد الوارد</div>
         <div class="menu-item" id="tab-starred" onclick="loadTab('starred')">⭐️ المميزة</div>
         <div class="menu-item" id="tab-sent" onclick="loadTab('sent')">📤 البريد المرسل</div>
@@ -267,7 +284,7 @@
         <div class="header">
             <div class="user-info">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+                    <button type="button" class="mobile-toggle" onclick="toggleSidebar()" aria-label="فتح القائمة الجانبية">☰</button>
                     <span>مرحباً، <span id="display-name" style="color:var(--primary);"></span> 👋</span>
                 </div>
                 <div class="user-email" id="display-email"></div>
@@ -278,16 +295,16 @@
             
             <div class="email-list-wrapper" id="list-wrapper">
                 <div class="search-container">
-                    <input type="text" id="search-input" class="search-input" placeholder="🔍 ابحث في المرسل أو الموضوع..." oninput="filterEmails()">
+                    <input type="text" id="search-input" class="search-input" placeholder="🔍 ابحث في المرسل أو الموضوع..." oninput="filterEmails()" aria-label="البحث في الرسائل">
                 </div>
                 
                 <div class="email-list-container" id="emails-list">
                     </div>
 
                 <div class="pagination-bar">
-                    <button class="page-btn" id="btn-prev" onclick="changePage(-1)">السابق</button>
+                    <button type="button" class="page-btn" id="btn-prev" onclick="changePage(-1)">السابق</button>
                     <span id="page-info" style="font-size: 0.9rem; font-weight: bold; color: var(--text);">صفحة 1</span>
-                    <button class="page-btn" id="btn-next" onclick="changePage(1)">التالي</button>
+                    <button type="button" class="page-btn" id="btn-next" onclick="changePage(1)">التالي</button>
                 </div>
             </div>
 
@@ -299,17 +316,17 @@
                 </div>
 
                 <div class="reader-header" id="reader-header">
-                    <button class="mobile-back" onclick="closeReaderMobile()">⬅️ العودة للقائمة</button>
+                    <button type="button" class="mobile-back" onclick="closeReaderMobile()">⬅️ العودة للقائمة</button>
                     
                     <div class="reader-actions" id="normal-actions">
-                        <button class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
-                        <button class="btn-action btn-forward" id="btn-forward-current">توجيه ➡️</button>
-                        <button class="btn-action btn-print" id="btn-print-current">طباعة 🖨️</button>
-                        <button class="btn-action btn-delete" id="btn-delete-current">للمهملات 🗑️</button>
+                        <button type="button" class="btn-action btn-reply" id="btn-reply-current">رد ↩️</button>
+                        <button type="button" class="btn-action btn-forward" id="btn-forward-current">توجيه ➡️</button>
+                        <button type="button" class="btn-action btn-print" id="btn-print-current">طباعة 🖨️</button>
+                        <button type="button" class="btn-action btn-delete" id="btn-delete-current">للمهملات 🗑️</button>
                     </div>
                     <div class="reader-actions" id="trash-actions" style="display:none;">
-                        <button class="btn-action btn-restore" id="btn-restore-current">استرجاع ♻️</button>
-                        <button class="btn-action btn-delete" id="btn-hard-delete-current">حذف نهائي 💥</button>
+                        <button type="button" class="btn-action btn-restore" id="btn-restore-current">استرجاع ♻️</button>
+                        <button type="button" class="btn-action btn-delete" id="btn-hard-delete-current">حذف نهائي 💥</button>
                     </div>
                     <div class="reader-subject" id="reader-subject" style="margin-top: 15px; clear: both;"></div>
                     <div class="reader-meta" id="reader-meta"></div>
@@ -323,7 +340,7 @@
                         <h2 style="margin:0; font-size:1.8rem;">🔐 مدير الأكواد (2FA)</h2>
                         <p style="margin:5px 0 0 0; color:#64748b; font-size:0.9rem;">أكواد سريعة وآمنة لحساباتك الخارجية.</p>
                     </div>
-                    <button class="btn-compose" style="width:auto; padding:10px 20px; margin-bottom:0; box-shadow:none;" onclick="document.getElementById('add-auth-modal').style.display='flex'">+ إضافة حساب</button>
+                    <button type="button" class="btn-compose" style="width:auto; padding:10px 20px; margin-bottom:0; box-shadow:none;" onclick="document.getElementById('add-auth-modal').style.display='flex'">+ إضافة حساب</button>
                 </div>
                 <div class="auth-grid" id="auth-grid"></div>
             </div>
@@ -335,28 +352,28 @@
         <div class="modal-box">
             <h3 class="modal-title"><span id="compose-title">✏️ رسالة جديدة</span></h3>
             <div class="contact-input-group" style="display:flex; gap:10px; margin-bottom:15px;">
-                <input type="email" id="compose-to" class="input-field" placeholder="إلى (الإيميل)" style="margin-bottom:0; flex:1;">
+                <input type="email" id="compose-to" class="input-field" placeholder="إلى (الإيميل)" style="margin-bottom:0; flex:1;" autocomplete="email">
                 <select id="contact-selector" class="input-field" style="margin-bottom:0; width:auto; cursor:pointer;" onchange="selectContact()">
                     <option value="">+ جهات الاتصال</option>
                 </select>
             </div>
             <input type="text" id="compose-subject" class="input-field" placeholder="الموضوع">
             <div class="editor-toolbar">
-                <button class="editor-btn" onclick="execCmd('bold')"><b>B</b></button>
-                <button class="editor-btn" onclick="execCmd('italic')"><i>I</i></button>
-                <button class="editor-btn" onclick="execCmd('underline')"><u>U</u></button>
-                <button class="editor-btn" onclick="insertLink()">🔗</button>
+                <button type="button" class="editor-btn" onclick="execCmd('bold')" aria-label="تنسيق عريض"><b>B</b></button>
+                <button type="button" class="editor-btn" onclick="execCmd('italic')" aria-label="تنسيق مائل"><i>I</i></button>
+                <button type="button" class="editor-btn" onclick="execCmd('underline')" aria-label="تسطير"><u>U</u></button>
+                <button type="button" class="editor-btn" onclick="insertLink()" aria-label="إضافة رابط">🔗</button>
             </div>
             <div id="compose-body" class="input-field rich-textarea" contenteditable="true" placeholder="اكتب رسالتك هنا... (يمكنك سحب وإفلات الصور والملفات هنا)"></div>
             <div class="modal-actions">
                 <div class="attachment-area">
                     <input type="file" id="compose-attachment" style="display: none;" onchange="handleFileSelect(event)">
-                    <button class="btn-attach" onclick="document.getElementById('compose-attachment').click()" title="إرفاق ملف">📎</button>
+                    <button type="button" class="btn-attach" onclick="document.getElementById('compose-attachment').click()" title="إرفاق ملف" aria-label="إرفاق ملف">📎</button>
                     <span class="attachment-name" id="attachment-name"></span>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn-cancel" onclick="closeCompose()">إغلاق</button>
-                    <button class="btn-send" id="btn-send-action" onclick="sendEmail()">إرسال 🚀</button>
+                    <button type="button" class="btn-cancel" onclick="closeCompose()">إغلاق</button>
+                    <button type="button" class="btn-send" id="btn-send-action" onclick="sendEmail()">إرسال 🚀</button>
                 </div>
             </div>
         </div>
@@ -369,9 +386,9 @@
                 <input type="text" id="c-name" class="input-field" placeholder="الاسم" style="margin-bottom:0; flex:1;">
                 <input type="email" id="c-email" class="input-field" placeholder="الإيميل" style="margin-bottom:0; flex:2;">
             </div>
-            <button class="btn-compose" style="width:100%; margin-bottom:20px; box-shadow:none;" onclick="addContact()">➕ إضافة</button>
+            <button type="button" class="btn-compose" style="width:100%; margin-bottom:20px; box-shadow:none;" onclick="addContact()">➕ إضافة</button>
             <div id="contacts-list" style="max-height: 200px; overflow-y: auto;"></div>
-            <button class="btn-cancel" style="width:100%; margin-top:15px;" onclick="closeContactsModal()">إغلاق</button>
+            <button type="button" class="btn-cancel" style="width:100%; margin-top:15px;" onclick="closeContactsModal()">إغلاق</button>
         </div>
     </div>
 
@@ -381,7 +398,7 @@
             <p style="font-size:0.8rem; color:#64748b; margin-top:0;">امسح الباركود بالكاميرا أو ادخل البيانات يدوياً.</p>
             
             <div id="qr-reader" style="width:100%; display:none; margin-bottom:15px; border-radius:8px; overflow:hidden; border: 1px solid var(--border);"></div>
-            <button id="btn-scan-qr" class="btn-compose" style="width:100%; margin-bottom:15px; background:linear-gradient(135deg, #8b5cf6, #6d28d9); box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);" onclick="startQRScanner()">📷 مسح الباركود (QR Code)</button>
+            <button type="button" id="btn-scan-qr" class="btn-compose" style="width:100%; margin-bottom:15px; background:linear-gradient(135deg, #8b5cf6, #6d28d9); box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);" onclick="startQRScanner()">📷 مسح الباركود (QR Code)</button>
             
             <div style="text-align:center; color:#94a3b8; margin-bottom:15px; font-size:0.9rem;">— أو الإدخال اليدوي —</div>
 
@@ -390,13 +407,13 @@
                 <input type="text" id="auth-acc-key" class="input-field" placeholder="الكود السري (Secret Key)" style="margin-bottom:0;">
             </div>
             <div style="display:flex; gap:10px;">
-                <button class="btn-cancel" onclick="closeAuthModal()" style="flex:1;">إلغاء</button>
-                <button class="btn-send" onclick="saveAuthAccount()" style="flex:1;">حفظ ✅</button>
+                <button type="button" class="btn-cancel" onclick="closeAuthModal()" style="flex:1;">إلغاء</button>
+                <button type="button" class="btn-send" onclick="saveAuthAccount()" style="flex:1;">حفظ ✅</button>
             </div>
         </div>
     </div>
 
-    <div id="live-toast" class="toast-notification">🔔 رسالة جديدة!</div>
+    <div id="live-toast" class="toast-notification" aria-live="polite">🔔 رسالة جديدة!</div>
     <div id="copy-toast" class="toast-notification copy-toast" aria-live="polite">تم النسخ!</div>
 
     <script>
@@ -408,7 +425,16 @@
             });
         }
 
-        const userData = JSON.parse(localStorage.getItem('a2z_user'));
+        function getUserData() {
+            try {
+                return JSON.parse(localStorage.getItem('a2z_user'));
+            } catch (err) {
+                localStorage.removeItem('a2z_user');
+                return null;
+            }
+        }
+
+        const userData = getUserData();
         if (!userData) { window.location.href = 'index.html'; }
 
         document.getElementById('display-name').innerText = userData.username;
@@ -463,6 +489,7 @@
         const ITEMS_PER_PAGE = 50;
         let currentPage = 1;
         let totalCount = 0;
+        let currentReaderBlobUrl = null;
 
         function setupRealtime() {
             myApp.channel('custom-all-channel')
@@ -905,7 +932,9 @@
             let isDark = document.body.classList.contains('dark-mode');
             
             let doc = `<!DOCTYPE html><html dir="auto"><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:20px;background:${isDark ? '#1e293b' : '#fff'};color:${isDark ? '#f1f5f9' : '#000'};font-family:-apple-system, sans-serif; font-size:16px;} a{color:#3b82f6;} div{color:${isDark ? '#f1f5f9' : '#000'} !important; background-color:transparent !important;}</style></head><body>${finalDesign}</body></html>`;
-            document.getElementById('reader-frame').src = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
+            if (currentReaderBlobUrl) URL.revokeObjectURL(currentReaderBlobUrl);
+            currentReaderBlobUrl = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
+            document.getElementById('reader-frame').src = currentReaderBlobUrl;
         }
 
         function openCompose() { 
@@ -1140,6 +1169,9 @@
         }
 
         function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
+        window.addEventListener('beforeunload', () => {
+            if (currentReaderBlobUrl) URL.revokeObjectURL(currentReaderBlobUrl);
+        });
         window.onload = fetchEmails;
     </script>
 </body>
