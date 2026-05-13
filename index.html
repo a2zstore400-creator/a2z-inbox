@@ -64,12 +64,80 @@
         .feat-card h3 { color: var(--primary); margin-top: 0; font-size: 1.5rem;}
         .feat-card p { color: #64748b; line-height: 1.6; font-size: 1.05rem; margin-bottom: 0;}
 
+        .support-fab {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            z-index: 1200;
+            border: none;
+            border-radius: 999px;
+            padding: 12px 18px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            box-shadow: 0 10px 22px rgba(0, 67, 156, 0.35);
+        }
+        .support-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            z-index: 1400;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .support-modal {
+            width: 100%;
+            max-width: 520px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.16);
+            padding: 22px;
+            box-sizing: border-box;
+        }
+        .support-modal h3 { margin: 0 0 12px 0; color: #0f172a; }
+        .support-row { margin-bottom: 12px; }
+        .support-row input, .support-row textarea {
+            width: 100%;
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 10px;
+            padding: 11px 12px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .support-row textarea { min-height: 120px; resize: vertical; }
+        .support-row input:focus, .support-row textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 67, 156, 0.1);
+        }
+        .support-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .support-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .support-btn.cancel { background: #e2e8f0; color: #334155; }
+        .support-btn.send { color: #fff; background: linear-gradient(135deg, var(--primary), #3b82f6); }
+        .support-note { font-size: 0.82rem; color: #64748b; margin-top: 8px; }
+
         @media (max-width: 768px) { 
             nav { width: 90%; left: 5%; padding: 15px; }
             .hero h1 { font-size: 2.5rem; } 
             .btn-group { flex-direction: column; width: 100%; } 
             .stats { gap: 15px; }
             .stat-item { width: 100%; padding: 20px; }
+            .support-fab { left: 12px; bottom: 12px; }
         }
     </style>
 </head>
@@ -121,6 +189,24 @@
         </div>
     </section>
 
+    <button type="button" class="support-fab" onclick="openSupportModal()">تواصل معنا 💬</button>
+    <div id="support-overlay" class="support-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="support-title">
+        <div class="support-modal">
+            <h3 id="support-title">تقديم شكوى أو طلب مساعدة</h3>
+            <div class="support-row">
+                <input type="email" id="support-email" placeholder="اكتب بريدك في A2Z Mail" autocomplete="email">
+            </div>
+            <div class="support-row">
+                <textarea id="support-message" placeholder="اشرح المشكلة بالتفصيل (مثال: لا أقدر أسجل دخول / أشك في سرقة الحساب)"></textarea>
+            </div>
+            <div class="support-actions">
+                <button type="button" class="support-btn cancel" onclick="closeSupportModal()">إغلاق</button>
+                <button type="button" class="support-btn send" id="support-send-btn" onclick="sendSupportTicket()">إرسال الشكوى</button>
+            </div>
+            <div class="support-note">يرجى كتابة البريد بدقة لتسريع المراجعة.</div>
+        </div>
+    </div>
+
     <script>
         // ميزة التوجيه التلقائي: لو المستخدم مسجل دخول بالفعل، يروح للصندوق فوراً
         const userData = JSON.parse(localStorage.getItem('a2z_user'));
@@ -146,6 +232,51 @@
             }
         }
         updateStats();
+
+        function openSupportModal() {
+            document.getElementById('support-overlay').style.display = 'flex';
+        }
+
+        function closeSupportModal() {
+            document.getElementById('support-overlay').style.display = 'none';
+            document.getElementById('support-message').value = '';
+        }
+
+        async function sendSupportTicket() {
+            const email = document.getElementById('support-email').value.trim().toLowerCase();
+            const message = document.getElementById('support-message').value.trim();
+            const btn = document.getElementById('support-send-btn');
+            if (!email || !message) return alert('من فضلك اكتب البريد والمشكلة.');
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return alert('صيغة البريد غير صحيحة.');
+
+            btn.disabled = true;
+            btn.innerText = 'جاري الإرسال... ⏳';
+            try {
+                const response = await fetch("https://late-butterfly-bd1a.a2z-store400.workers.dev", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: `A2Z Support Form <admin@a2z-mail.com>`,
+                        to: 'admin@a2z-mail.com',
+                        subject: `شكوى دعم: ${email}`,
+                        html: `<div dir="rtl" style="font-family: Arial, sans-serif; line-height:1.7;">
+                                <h3>طلب دعم جديد من الموقع الخارجي</h3>
+                                <p><strong>البريد المرسل:</strong> ${email}</p>
+                                <p><strong>التفاصيل:</strong></p>
+                                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">${message.replace(/\n/g, '<br>')}</div>
+                              </div>`
+                    })
+                });
+                if (!response.ok) throw new Error('send_failed');
+                alert('تم إرسال الشكوى بنجاح. سيتم مراجعتها.');
+                closeSupportModal();
+            } catch (err) {
+                alert('تعذر إرسال الشكوى الآن، حاول مرة أخرى.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'إرسال الشكوى';
+            }
+        }
     </script>
 </body>
 </html>
