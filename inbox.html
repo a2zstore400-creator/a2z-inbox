@@ -14,8 +14,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00439c; --bg: #f4f6f8; --card: #ffffff; --text: #0f172a; --border: rgba(226, 232, 240, 0.8); --star: #eab308; }
@@ -490,6 +490,7 @@
         let currentPage = 1;
         let totalCount = 0;
         let currentReaderBlobUrl = null;
+        let filterDebounceTimer = null;
 
         function setupRealtime() {
             myApp.channel('custom-all-channel')
@@ -773,12 +774,15 @@
         }
 
         function filterEmails() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            filteredEmails = allEmails.filter(email => 
-                (email.sender && email.sender.toLowerCase().includes(query)) || 
-                (email.subject && email.subject.toLowerCase().includes(query))
-            );
-            renderEmailList();
+            if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
+            filterDebounceTimer = setTimeout(() => {
+                const query = document.getElementById('search-input').value.toLowerCase();
+                filteredEmails = allEmails.filter(email =>
+                    (email.sender && email.sender.toLowerCase().includes(query)) ||
+                    (email.subject && email.subject.toLowerCase().includes(query))
+                );
+                renderEmailList();
+            }, 120);
         }
 
         async function toggleStar(event, id, currentStatus) {
@@ -815,8 +819,10 @@
             </div>`;
 
             let itemsHTML = filteredEmails.map((email, index) => {
-                let displayPerson = currentTab === 'inbox' || currentTab === 'starred' ? email.sender.split('<')[0].replace(/"/g, '') : `إلى: ${email.recipient}`;
-                if(currentTab === 'trash') displayPerson = email.sender.split('<')[0].replace(/"/g, '');
+                const senderText = (email.sender || '').toString();
+                const recipientText = (email.recipient || '').toString();
+                let displayPerson = currentTab === 'inbox' || currentTab === 'starred' ? senderText.split('<')[0].replace(/"/g, '') : `إلى: ${recipientText}`;
+                if(currentTab === 'trash') displayPerson = senderText.split('<')[0].replace(/"/g, '');
                 
                 let cleanName = displayPerson.replace('إلى:', '').trim();
                 let firstLetter = cleanName ? cleanName.charAt(0).toUpperCase() : '?';
@@ -824,7 +830,8 @@
                 let bgColor = colors[(cleanName.charCodeAt(0) || 0) % colors.length];
                 let avatarHTML = `<div class="avatar" style="background-color: ${bgColor};">${firstLetter}</div>`;
 
-                let hasAttachment = email.body_text.includes('supabase.co/storage') ? ' 📎' : '';
+                const bodyText = (email.body_text || '').toString();
+                let hasAttachment = bodyText.includes('supabase.co/storage') ? ' 📎' : '';
                 let isChecked = selectedEmailIds.includes(email.id) ? 'checked' : '';
                 let starClass = email.is_starred ? 'starred' : '';
                 let starChar = email.is_starred ? '★' : '☆';
@@ -900,7 +907,8 @@
             document.getElementById('reader-frame').style.display = 'block';
             document.getElementById('reader-subject').innerText = email.subject || 'بدون عنوان';
             
-            let cleanName = (email.sender.split('<')[0].replace(/"/g, '')).trim();
+            const senderText = (email.sender || '').toString();
+            let cleanName = (senderText.split('<')[0].replace(/"/g, '')).trim();
             let firstLetter = cleanName ? cleanName.charAt(0).toUpperCase() : '?';
             let bgColor = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][(cleanName.charCodeAt(0) || 0) % 5];
             
@@ -908,8 +916,8 @@
                 <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
                     <div class="avatar" style="background-color: ${bgColor}; width:45px; height:45px; font-size:1.3rem;">${firstLetter}</div>
                     <div>
-                        <strong>من:</strong> ${email.sender.replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> 
-                        <strong>إلى:</strong> ${email.recipient} <br> 
+                        <strong>من:</strong> ${(email.sender || '').toString().replace(/</g, '&lt;').replace(/>/g, '&gt;')} <br> 
+                        <strong>إلى:</strong> ${(email.recipient || '').toString()} <br> 
                         <span style="color:#94a3b8; font-size:0.8rem;">${new Date(email.created_at).toLocaleString('ar-EG')}</span>
                     </div>
                 </div>`;
@@ -924,7 +932,12 @@
                 document.getElementById('trash-actions').style.display = 'none';
                 document.getElementById('btn-delete-current').onclick = () => { myApp.from('emails').update({ is_trashed: true }).eq('id', email.id).then(() => { closeReaderMobile(); fetchEmails(); }); };
                 document.getElementById('btn-print-current').onclick = () => { const f = document.getElementById('reader-frame'); f.contentWindow.focus(); f.contentWindow.print(); };
-                document.getElementById('btn-reply-current').onclick = () => { openCompose(); document.getElementById('compose-to').value = email.sender.includes('<') ? email.sender.split('<')[1].split('>')[0] : email.sender; document.getElementById('compose-subject').value = `رد: ${email.subject || ''}`; };
+                document.getElementById('btn-reply-current').onclick = () => {
+                    openCompose();
+                    const senderValue = (email.sender || '').toString();
+                    document.getElementById('compose-to').value = senderValue.includes('<') ? senderValue.split('<')[1].split('>')[0] : senderValue;
+                    document.getElementById('compose-subject').value = `رد: ${email.subject || ''}`;
+                };
                 document.getElementById('btn-forward-current').onclick = () => { openCompose(); document.getElementById('compose-subject').value = `Fwd: ${email.subject || ''}`; document.getElementById('compose-body').innerHTML = `<br><hr><br>${superDecoder(email.body_text)}`; };
             }
 
@@ -1171,6 +1184,8 @@
         function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
         window.addEventListener('beforeunload', () => {
             if (currentReaderBlobUrl) URL.revokeObjectURL(currentReaderBlobUrl);
+            if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
+            myApp.removeAllChannels();
         });
         window.onload = fetchEmails;
     </script>
