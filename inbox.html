@@ -61,7 +61,7 @@
 
         .main-content { flex: 1; display: flex; flex-direction: column; width: 100%; position: relative; }
         
-        .header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.3s; }
+        .header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; transition: background 0.3s; position: relative; z-index: 9999; }
         body.dark-mode .header { background: rgba(30, 41, 59, 0.85); }
         .impersonation-banner {
             display: none;
@@ -372,6 +372,7 @@
         <div class="menu-item" onclick="window.location.href='profile.html'">⚙️ إعدادات الحساب</div>
         <div class="menu-item" id="btn-theme" onclick="toggleTheme()">🌙 الوضع الليلي</div>
         
+        <div class="menu-item" style="color: var(--primary); font-weight: bold; background: rgba(0, 67, 156, 0.05);" onclick="document.getElementById('account-switcher-trigger').click(); if(window.innerWidth <= 768) toggleSidebar();">🔄 تبديل لحساب آخر</div>
         <div class="menu-item btn-logout" onclick="logout()">🚪 تسجيل خروج</div>
     </div>
 
