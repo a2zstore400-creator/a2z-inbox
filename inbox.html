@@ -110,9 +110,54 @@
             font-size: 0.85rem;
         }
         
-        .user-info { font-weight: bold; color: var(--text); font-size: 1.1rem; display: flex; align-items: center; gap: 15px; }
+        .user-info { font-weight: bold; color: var(--text); font-size: 1.1rem; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
         .user-email { font-size: 0.9rem; color: var(--primary); background: rgba(0, 67, 156, 0.1); padding: 6px 15px; border-radius: 20px; font-weight: bold; }
         body.dark-mode .user-email { background: rgba(96, 165, 250, 0.15); color: #93c5fd; }
+
+        .account-switcher { position: relative; }
+        .account-switcher-trigger {
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+            font-size: 0.9rem; color: var(--primary); background: rgba(0, 67, 156, 0.1);
+            padding: 6px 15px; border-radius: 20px; font-weight: bold; border: none;
+            font-family: 'Cairo', sans-serif; transition: background 0.2s, box-shadow 0.2s;
+        }
+        .account-switcher-trigger:hover { background: rgba(0, 67, 156, 0.16); box-shadow: 0 2px 8px rgba(0, 67, 156, 0.12); }
+        body.dark-mode .account-switcher-trigger { background: rgba(96, 165, 250, 0.15); color: #93c5fd; }
+        body.dark-mode .account-switcher-trigger:hover { background: rgba(96, 165, 250, 0.22); }
+        .account-switcher-chevron { font-size: 0.7rem; opacity: 0.75; transition: transform 0.2s; }
+        .account-switcher.open .account-switcher-chevron { transform: rotate(180deg); }
+        .account-dropdown {
+            display: none; position: absolute; top: calc(100% + 8px); left: 0; min-width: 280px;
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12); z-index: 200; overflow: hidden;
+            animation: accountDropIn 0.2s ease-out;
+        }
+        .account-switcher.open .account-dropdown { display: block; }
+        @keyframes accountDropIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .account-dropdown-header { padding: 10px 14px; font-size: 0.75rem; color: #64748b; border-bottom: 1px solid var(--border); font-weight: 700; }
+        .account-dropdown-list { max-height: 280px; overflow-y: auto; }
+        .account-option {
+            display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px;
+            border: none; background: transparent; cursor: pointer; text-align: right;
+            font-family: 'Cairo', sans-serif; font-size: 0.88rem; color: var(--text); transition: background 0.15s;
+        }
+        .account-option:hover { background: rgba(0, 67, 156, 0.06); }
+        body.dark-mode .account-option:hover { background: rgba(96, 165, 250, 0.1); }
+        .account-option.active { background: rgba(0, 67, 156, 0.1); font-weight: 700; }
+        body.dark-mode .account-option.active { background: rgba(96, 165, 250, 0.15); }
+        .account-option-dot { width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; }
+        .account-option.active .account-option-dot { background: var(--primary); }
+        .account-option-email { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: left; }
+        .account-option-check { color: var(--primary); font-size: 0.85rem; flex-shrink: 0; }
+        .account-add-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+            padding: 12px 14px; border: none; border-top: 1px solid var(--border);
+            background: rgba(0, 67, 156, 0.04); color: var(--primary); font-family: 'Cairo', sans-serif;
+            font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: background 0.15s;
+        }
+        .account-add-btn:hover { background: rgba(0, 67, 156, 0.1); }
+        body.dark-mode .account-add-btn { background: rgba(96, 165, 250, 0.08); }
+        body.dark-mode .account-add-btn:hover { background: rgba(96, 165, 250, 0.15); }
 
         .workspace { display: flex; flex: 1; overflow: hidden; position: relative; }
         
@@ -247,6 +292,8 @@
             
             .modal-box { padding: 15px; }
             .contact-input-group { flex-direction: column; }
+            .account-dropdown { left: auto; right: 0; min-width: min(100vw - 30px, 300px); }
+            .account-switcher-trigger { min-height: 44px; }
         }
 
         .auth-container { flex: 1; padding: 30px; overflow-y: auto; background: transparent; transition: opacity 0.3s; animation: fadeIn 0.4s; }
@@ -342,7 +389,18 @@
                     <button type="button" class="mobile-toggle" onclick="toggleSidebar()" aria-label="فتح القائمة الجانبية">☰</button>
                     <span>مرحباً، <span id="display-name" style="color:var(--primary);"></span> 👋</span>
                 </div>
-                <div class="user-email" id="display-email"></div>
+                <div class="account-switcher" id="account-switcher-wrap">
+                    <button type="button" class="account-switcher-trigger user-email" id="account-switcher-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="تبديل الحساب">
+                        <span id="display-email"></span>
+                        <span class="account-switcher-chevron" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="account-dropdown" id="account-dropdown" role="listbox">
+                        <div class="account-dropdown-header">الحسابات المحفوظة</div>
+                        <div class="account-dropdown-list" id="account-switcher-list"></div>
+                        <button type="button" class="account-add-btn" id="account-add-btn">➕ إضافة حساب جديد</button>
+                    </div>
+                </div>
+                <div class="user-email" id="display-email-plain" style="display:none;"></div>
             </div>
         </div>
 
@@ -483,6 +541,7 @@
     <div id="live-toast" class="toast-notification" aria-live="polite">🔔 رسالة جديدة!</div>
     <div id="copy-toast" class="toast-notification copy-toast" aria-live="polite">تم النسخ!</div>
 
+    <script src="account-store.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -493,6 +552,10 @@
         }
 
         function getUserData() {
+            if (typeof AccountStore !== 'undefined') {
+                const user = AccountStore.getActiveUser();
+                if (user) return user;
+            }
             try {
                 return JSON.parse(localStorage.getItem('a2z_user'));
             } catch (err) {
@@ -501,10 +564,22 @@
             }
         }
 
-        const userData = getUserData();
-        if (!userData) { window.location.href = 'index.html'; }
+        if (typeof AccountStore !== 'undefined') {
+            AccountStore.migrateFromLegacyUser();
+        }
+
+        let sessionUser = getUserData();
+        if (!sessionUser) { window.location.href = 'index.html'; }
+        if (typeof AccountStore !== 'undefined') {
+            AccountStore.setActiveSession(sessionUser);
+            sessionUser = AccountStore.getActiveUser() || sessionUser;
+        }
+
         const SUPER_ADMIN_EMAILS = ['admin@a2z-mail.com'];
-        const isSuperAdmin = SUPER_ADMIN_EMAILS.includes((userData.email_address || '').toLowerCase());
+        function isSuperAdminUser(user) {
+            return SUPER_ADMIN_EMAILS.includes((user?.email_address || '').toLowerCase());
+        }
+        let isSuperAdmin = isSuperAdminUser(sessionUser);
         let impersonationData = null;
         try {
             impersonationData = JSON.parse(localStorage.getItem('a2z_impersonation') || 'null');
@@ -517,12 +592,29 @@
             impersonationData.active &&
             impersonationData.targetEmail
         );
-        const mailboxOwnerEmail = isImpersonating ? impersonationData.targetEmail : userData.email_address;
+        function getMailboxOwnerEmail() {
+            return isImpersonating ? impersonationData.targetEmail : sessionUser.email_address;
+        }
 
-        document.getElementById('display-name').innerText = isImpersonating
-            ? (impersonationData.targetName || impersonationData.targetEmail.split('@')[0])
-            : userData.username;
-        document.getElementById('display-email').innerText = mailboxOwnerEmail;
+        function updateHeaderIdentity() {
+            document.getElementById('display-name').innerText = isImpersonating
+                ? (impersonationData.targetName || impersonationData.targetEmail.split('@')[0])
+                : sessionUser.username;
+            const emailEl = document.getElementById('display-email');
+            const plainEl = document.getElementById('display-email-plain');
+            const switcherWrap = document.getElementById('account-switcher-wrap');
+            const mailboxEmail = getMailboxOwnerEmail();
+            if (isImpersonating) {
+                if (switcherWrap) switcherWrap.style.display = 'none';
+                if (plainEl) { plainEl.style.display = ''; plainEl.innerText = mailboxEmail; }
+            } else {
+                if (switcherWrap) switcherWrap.style.display = '';
+                if (plainEl) plainEl.style.display = 'none';
+                if (emailEl) emailEl.innerText = mailboxEmail;
+                renderAccountSwitcherList();
+            }
+        }
+        updateHeaderIdentity();
         if (isImpersonating) {
             const banner = document.getElementById('impersonation-banner');
             const text = document.getElementById('impersonation-text');
@@ -600,7 +692,7 @@
             if (!emailAddress || !isSuperAdmin) return;
             localStorage.setItem('a2z_impersonation', JSON.stringify({
                 active: true,
-                by: userData.email_address,
+                by: sessionUser.email_address,
                 targetId: uid,
                 targetName: username || '',
                 targetEmail: emailAddress,
@@ -673,10 +765,16 @@
         let currentReaderBlobUrl = null;
         let filterDebounceTimer = null;
 
+        let realtimeChannel = null;
         function setupRealtime() {
-            myApp.channel('custom-all-channel')
+            if (realtimeChannel) {
+                myApp.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
+            realtimeChannel = myApp.channel('custom-all-channel-' + getMailboxOwnerEmail())
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'emails' }, payload => {
-                if (payload.new.recipient && payload.new.recipient.toLowerCase() === mailboxOwnerEmail.toLowerCase()) {
+                const owner = getMailboxOwnerEmail();
+                if (payload.new.recipient && payload.new.recipient.toLowerCase() === owner.toLowerCase()) {
                     playBeep();
                     showToast(`رسالة جديدة من: ${payload.new.sender.replace(/</g, '').replace(/>/g, '')}`);
                     if(currentTab === 'inbox') { fetchEmails(); }
@@ -736,7 +834,12 @@
             }
         }
 
-        let myContacts = JSON.parse(localStorage.getItem(`a2z_contacts_${userData.email_address}`)) || [];
+        let myContacts = [];
+        function loadContactsForSession() {
+            myContacts = JSON.parse(localStorage.getItem(`a2z_contacts_${sessionUser.email_address}`)) || [];
+            refreshContactsSelect();
+        }
+        loadContactsForSession();
         function refreshContactsSelect() {
             const sel = document.getElementById('contact-selector');
             if(!sel) return;
@@ -747,8 +850,6 @@
                 sel.appendChild(opt);
             });
         }
-        refreshContactsSelect();
-
         function selectContact() {
             const sel = document.getElementById('contact-selector');
             if(sel.value) { document.getElementById('compose-to').value = sel.value; sel.value = ''; }
@@ -766,14 +867,14 @@
             const email = document.getElementById('c-email').value.trim();
             if(!name || !email) return alert('أدخل الاسم والإيميل');
             myContacts.push({name, email});
-            localStorage.setItem(`a2z_contacts_${userData.email_address}`, JSON.stringify(myContacts));
+            localStorage.setItem(`a2z_contacts_${sessionUser.email_address}`, JSON.stringify(myContacts));
             document.getElementById('c-name').value = ''; document.getElementById('c-email').value = '';
             renderContactsList(); refreshContactsSelect();
         }
 
         function deleteContact(index) {
             myContacts.splice(index, 1);
-            localStorage.setItem(`a2z_contacts_${userData.email_address}`, JSON.stringify(myContacts));
+            localStorage.setItem(`a2z_contacts_${sessionUser.email_address}`, JSON.stringify(myContacts));
             renderContactsList(); refreshContactsSelect();
         }
 
@@ -926,10 +1027,11 @@
             try {
                 let query = myApp.from('emails').select('*', { count: 'exact' }).order('created_at', { ascending: false });
                 
-                if (currentTab === 'inbox') query = query.ilike('recipient', mailboxOwnerEmail).eq('is_trashed', false); 
-                else if (currentTab === 'sent') query = query.ilike('sender', `%${mailboxOwnerEmail}%`).eq('is_trashed', false); 
-                else if (currentTab === 'trash') query = query.or(`recipient.ilike.${mailboxOwnerEmail},sender.ilike.%${mailboxOwnerEmail}%`).eq('is_trashed', true);
-                else if (currentTab === 'starred') query = query.ilike('recipient', mailboxOwnerEmail).eq('is_trashed', false).eq('is_starred', true);
+                const owner = getMailboxOwnerEmail();
+                if (currentTab === 'inbox') query = query.ilike('recipient', owner).eq('is_trashed', false); 
+                else if (currentTab === 'sent') query = query.ilike('sender', `%${owner}%`).eq('is_trashed', false); 
+                else if (currentTab === 'trash') query = query.or(`recipient.ilike.${owner},sender.ilike.%${owner}%`).eq('is_trashed', true);
+                else if (currentTab === 'starred') query = query.ilike('recipient', owner).eq('is_trashed', false).eq('is_starred', true);
 
                 query = query.range(from, to);
 
@@ -1198,9 +1300,9 @@
             const htmlFormat = `<div style="direction: rtl; text-align: right;">${bodyHtml}${attachmentHtml}</div>`;
 
             try {
-                const response = await fetch("https://late-butterfly-bd1a.a2z-store400.workers.dev", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: `A2Z Mail <${userData.email_address}>`, to, subject, html: htmlFormat }) });
+                const response = await fetch("https://late-butterfly-bd1a.a2z-store400.workers.dev", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: `A2Z Mail <${sessionUser.email_address}>`, to, subject, html: htmlFormat }) });
                 if ((await response.json()).id) {
-                    await myApp.from('emails').insert([{ sender: `A2Z Mail <${userData.email_address}>`, recipient: to, subject, body_text: htmlFormat, is_trashed: false, is_starred: false }]);
+                    await myApp.from('emails').insert([{ sender: `A2Z Mail <${sessionUser.email_address}>`, recipient: to, subject, body_text: htmlFormat, is_trashed: false, is_starred: false }]);
                     alert('تم الإرسال بنجاح! ✅'); closeCompose(); if(currentTab === 'sent') fetchEmails();
                 } else alert('حدث خطأ');
             } catch (e) { alert('خطأ في الاتصال'); } finally { btn.innerText = 'إرسال 🚀'; btn.disabled = false; }
@@ -1267,7 +1369,7 @@
             const key = document.getElementById('auth-acc-key').value.trim().replace(/\s/g, '');
             if(!name || !key) return alert('أدخل البيانات بشكل صحيح!');
 
-            const { error } = await myApp.from('a2z_2fa').insert([{ user_id: userData.id, account_name: name, secret_key: key }]);
+            const { error } = await myApp.from('a2z_2fa').insert([{ user_id: sessionUser.id, account_name: name, secret_key: key }]);
             if(!error) {
                 alert('تمت الإضافة بنجاح! 🎉');
                 closeAuthModal();
@@ -1278,7 +1380,7 @@
 
         let authInterval;
         async function loadAuthAccounts() {
-            const { data } = await myApp.from('a2z_2fa').select('*').eq('user_id', userData.id);
+            const { data } = await myApp.from('a2z_2fa').select('*').eq('user_id', sessionUser.id);
             const grid = document.getElementById('auth-grid');
             if(!data || data.length === 0) {
                 grid.innerHTML = '<p style="color:#64748b; font-weight:bold; grid-column: 1/-1;">لا يوجد حسابات مضافة حتى الآن.</p>';
@@ -1362,7 +1464,138 @@
             }
         }
 
-        function logout() { localStorage.removeItem('a2z_user'); window.location.href = 'index.html'; }
+        function logout() {
+            localStorage.removeItem('a2z_user');
+            localStorage.removeItem('a2z_active_account');
+            window.location.href = 'index.html';
+        }
+
+        // ——— Account Switcher ———
+        let accountSwitcherOpen = false;
+
+        function renderAccountSwitcherList() {
+            const listEl = document.getElementById('account-switcher-list');
+            if (!listEl || typeof AccountStore === 'undefined') return;
+            const accounts = AccountStore.getAccounts();
+            const activeEmail = AccountStore.normalizeEmail(sessionUser.email_address);
+            listEl.innerHTML = '';
+            if (accounts.length === 0) {
+                listEl.innerHTML = '<div style="padding:14px;text-align:center;color:#64748b;font-size:0.85rem;">لا توجد حسابات محفوظة</div>';
+                return;
+            }
+            accounts.forEach(acc => {
+                const email = AccountStore.normalizeEmail(acc.email);
+                const isActive = email === activeEmail;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'account-option' + (isActive ? ' active' : '');
+                btn.setAttribute('role', 'option');
+                btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                btn.innerHTML = `
+                    <span class="account-option-dot"></span>
+                    <span class="account-option-email">${email}</span>
+                    ${isActive ? '<span class="account-option-check">✓</span>' : ''}
+                `;
+                if (!isActive) btn.onclick = () => switchToAccount(email);
+                listEl.appendChild(btn);
+            });
+        }
+
+        function setAccountSwitcherOpen(open) {
+            accountSwitcherOpen = open;
+            const wrap = document.getElementById('account-switcher-wrap');
+            const trigger = document.getElementById('account-switcher-trigger');
+            if (!wrap || !trigger) return;
+            wrap.classList.toggle('open', open);
+            trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function clearInboxUi() {
+            allEmails = [];
+            filteredEmails = [];
+            selectedEmailIds = [];
+            currentPage = 1;
+            document.getElementById('search-input').value = '';
+            document.getElementById('emails-list').innerHTML = '';
+            document.getElementById('page-info').innerText = 'صفحة 1';
+            document.getElementById('btn-prev').disabled = true;
+            document.getElementById('btn-next').disabled = true;
+            closeReaderMobile();
+            if (currentReaderBlobUrl) {
+                URL.revokeObjectURL(currentReaderBlobUrl);
+                currentReaderBlobUrl = null;
+            }
+            const frame = document.getElementById('reader-frame');
+            frame.style.display = 'none';
+            frame.src = 'about:blank';
+            document.getElementById('reader-subject').innerText = '';
+            document.getElementById('reader-meta').innerText = '';
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('list-wrapper').style.display = '';
+            document.getElementById('reader-wrapper').style.display = '';
+            if (authInterval) { clearInterval(authInterval); authInterval = null; }
+        }
+
+        async function switchToAccount(email) {
+            if (typeof AccountStore === 'undefined') return;
+            const norm = AccountStore.normalizeEmail(email);
+            if (norm === AccountStore.normalizeEmail(sessionUser.email_address)) {
+                setAccountSwitcherOpen(false);
+                return;
+            }
+            const acc = AccountStore.getAccountByEmail(norm);
+            if (!acc) return alert('لم يتم العثور على بيانات هذا الحساب. سجّل الدخول مرة أخرى.');
+            const user = AccountStore.userFromToken(acc.token);
+            if (!user || !user.id) return alert('بيانات الجلسة غير صالحة. أعد تسجيل الدخول لهذا الحساب.');
+
+            setAccountSwitcherOpen(false);
+            clearInboxUi();
+
+            sessionUser = user;
+            isSuperAdmin = isSuperAdminUser(sessionUser);
+            AccountStore.setActiveSession(sessionUser);
+            localStorage.removeItem('a2z_impersonation');
+
+            updateHeaderIdentity();
+            loadContactsForSession();
+            setupRealtime();
+
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-inbox').classList.add('active');
+            currentTab = 'inbox';
+            await fetchEmails();
+        }
+
+        function initAccountSwitcher() {
+            const trigger = document.getElementById('account-switcher-trigger');
+            const addBtn = document.getElementById('account-add-btn');
+            if (!trigger || isImpersonating) return;
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setAccountSwitcherOpen(!accountSwitcherOpen);
+                if (accountSwitcherOpen) renderAccountSwitcherList();
+            });
+
+            if (addBtn) {
+                addBtn.addEventListener('click', () => {
+                    setAccountSwitcherOpen(false);
+                    window.location.href = 'login.html?add=1';
+                });
+            }
+
+            document.addEventListener('click', (e) => {
+                const wrap = document.getElementById('account-switcher-wrap');
+                if (wrap && !wrap.contains(e.target)) setAccountSwitcherOpen(false);
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') setAccountSwitcherOpen(false);
+            });
+
+            renderAccountSwitcherList();
+        }
+        initAccountSwitcher();
         window.addEventListener('beforeunload', () => {
             if (currentReaderBlobUrl) URL.revokeObjectURL(currentReaderBlobUrl);
             if (filterDebounceTimer) clearTimeout(filterDebounceTimer);

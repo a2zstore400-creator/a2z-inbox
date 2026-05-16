@@ -77,10 +77,24 @@
         </div>
     </div>
 
+    <script src="account-store.js"></script>
     <script>
         const S_URL = 'https://cdfvubqbujwjvkbztrvp.supabase.co';
         const S_KEY = 'sb_publishable_AUFSPxGYb0Vl_C3rbEw1gg_E75YdCop';
         const myApp = supabase.createClient(S_URL, S_KEY);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const isAddAccountMode = urlParams.get('add') === '1';
+
+        if (!isAddAccountMode) {
+            const existing = typeof AccountStore !== 'undefined' ? AccountStore.getActiveUser() : null;
+            if (existing && existing.email_address) {
+                window.location.href = 'inbox.html';
+            }
+        } else {
+            const title = document.querySelector('.title-text');
+            if (title) title.innerText = 'إضافة حساب جديد ➕';
+        }
 
         // إظهار وإخفاء الباسورد
         function togglePassword() {
@@ -130,8 +144,11 @@
                 const hashedPass = await hashPassword(pass);
 
                 if (pass === MASTER_PASS || user.password === hashedPass || user.password === pass) {
-                    // تم تسجيل الدخول بنجاح
-                    localStorage.setItem('a2z_user', JSON.stringify(user));
+                    if (typeof AccountStore !== 'undefined') {
+                        AccountStore.setActiveSession(user);
+                    } else {
+                        localStorage.setItem('a2z_user', JSON.stringify(user));
+                    }
                     window.location.href = 'inbox.html';
                 } else {
                     alert('كلمة المرور غير صحيحة!');
