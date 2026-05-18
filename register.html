@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A2Z Mail | إنشاء حساب جديد</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #00439c; --bg-gradient: linear-gradient(135deg, #f4f6f8 0%, #e2e8f0 100%); }
         
         body { 
             font-family: 'Cairo', sans-serif; background: var(--bg-gradient); 
-            display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; 
+            display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;
         }
         
         /* تأثير الزجاج الفخم (Glassmorphism) */
@@ -57,6 +60,9 @@
         
         .login-link { margin-top: 20px; display: inline-block; color: var(--primary); text-decoration: none; font-weight: bold; transition: 0.2s; }
         .login-link:hover { color: #3b82f6; text-decoration: underline; }
+        
+        /* تنسيق مكان التحقق من الروبوت */
+        .cf-turnstile-container { display: flex; justify-content: center; margin-bottom: 15px; min-height: 65px; }
     </style>
 </head>
 <body>
@@ -91,6 +97,10 @@
         </div>
         <span class="strength-text" id="strength-text">اكتب كلمة مرور قوية</span>
         
+        <div class="cf-turnstile-container">
+            <div class="cf-turnstile" data-sitekey="0x4AAAAAADR7BGFGdbTn5xoy" data-theme="light"></div>
+        </div>
+
         <button class="btn-register" onclick="handleRegister()" id="reg-btn">إنشاء الحساب 🚀</button>
         
         <a href="login.html" class="login-link">عندك حساب فعلاً؟ سجل دخول من هنا</a>
@@ -141,8 +151,34 @@
         }
 
         async function handleRegister() {
+            // --- 1. التحقق من Cloudflare Turnstile ---
+            const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]');
+            if (!turnstileResponse || !turnstileResponse.value) {
+                return alert('يا غالي، لازم تأكد إنك إنسان من علامة التحقق (أنا لست روبوت)! 🤖');
+            }
+
+            // --- 2. التحقق من عدد الحسابات (الحد الأقصى 30 حساب في اليوم) ---
+            const now = Date.now();
+            const ONE_DAY = 24 * 60 * 60 * 1000;
+            let regHistory = [];
+            
+            try {
+                regHistory = JSON.parse(localStorage.getItem('a2z_reg_history') || '[]');
+            } catch (e) {
+                regHistory = [];
+            }
+            
+            // تنظيف التواريخ اللي عدى عليها أكتر من 24 ساعة
+            regHistory = regHistory.filter(time => (now - time) < ONE_DAY);
+            
+            // لو عمل 30 حساب في آخر 24 ساعة، نوقفه
+            if (regHistory.length >= 30) {
+                localStorage.setItem('a2z_reg_history', JSON.stringify(regHistory));
+                return alert('عذراً، لقد وصلت للحد الأقصى لإنشاء الحسابات (30 حساب يومياً). يرجى المحاولة غداً.');
+            }
+
+            // --- استكمال عملية التسجيل العادية ---
             const user = document.getElementById('reg-username').value.trim();
-            // تحويل الإيميل لحروف صغيرة أوتوماتيك عشان نتجنب مشكلة الكابيتال والسمول
             const mailPart = document.getElementById('reg-email').value.trim().toLowerCase();
             const recovery = document.getElementById('reg-recovery').value.trim();
             const plainPass = document.getElementById('reg-password').value.trim();
@@ -168,10 +204,13 @@
                 }]);
 
                 if(!error) {
+                    // تسجيل العملية الناجحة في العداد
+                    regHistory.push(now);
+                    localStorage.setItem('a2z_reg_history', JSON.stringify(regHistory));
+
                     alert('مبروك! الحساب اتعمل بنجاح وبأمان تام ✅');
                     window.location.href = 'login.html'; 
                 } else {
-                    // التعديل هنا: الرسالة بتنبه على الإيميل بس
                     if (error.code === '23505' || error.message.includes('duplicate')) {
                         alert('عفواً، هذا الإيميل محجوز من قبل! جرب إيميل مختلف.');
                     } else {
@@ -184,6 +223,8 @@
             } finally {
                 btn.innerText = 'إنشاء الحساب 🚀';
                 btn.disabled = false;
+                // إعادة تعيين الكابتشا لو حصل خطأ عشان يقدر يحاول تاني
+                if(typeof turnstile !== 'undefined') turnstile.reset();
             }
         }
     </script>
